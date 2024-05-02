@@ -52,6 +52,15 @@ pt_start = curve.GetEndPoint(0)                     # type: XYZ
 pt_end = curve.GetEndPoint(1)                       # type: XYZ
 vector = pt_end - pt_start                          # type: XYZ
 
+win_family_type = None
+win_family_type_list = windowFamilyObject.Symbol.Parameters
+for param in win_family_type_list:
+    if param.Definition.Name == 'Family Name':
+        win_family_type = param.AsString()
+        break
+print('win type', win_family_type)
+
+
 win_height = windowFamilyObject.Symbol.get_Parameter(BuiltInParameter.GENERIC_HEIGHT).AsDouble()
 win_width = windowFamilyObject.Symbol.get_Parameter(BuiltInParameter.DOOR_WIDTH).AsDouble()
 win_depth = UnitUtils.ConvertToInternalUnits(40, UnitTypeId.Centimeters)
@@ -66,6 +75,150 @@ if wall_level_id:
     wall_level = doc.GetElement(wall_level_id)  # Get the Level element
 else:
     print("Wall does not have an associated level.")
+
+
+def find_upper_window(wall, wall_level_id, windowFamilyObject):
+    """
+    Finds a window directly above the given window on the level above.
+
+    Args:
+        wall (Element): The wall element containing the window.
+        wall_level_id (ElementId): The ID of the level the wall belongs to.
+        windowFamilyObject (FamilyInstance): The current window element.
+
+    Returns:
+        FamilyInstance: The window directly above, if found; None otherwise.
+    """
+
+    # Get the level above the current wall level (if it exists)
+    upper_level = None
+    if wall_level_id:
+        wall_level = doc.GetElement(wall_level_id)
+        upper_level = None
+        all_levels = FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Levels).ToElements()
+        for level in all_levels:
+            if type(level) == LevelType:
+                continue
+            # print('hahahahahhahahhahahahahahahhahah')
+            # print(level.Elevation)
+            # print(wall_level.Elevation)
+            if level.Elevation > wall_level.Elevation:
+                if not level.Name.startswith('Floor'):
+                    continue
+                upper_level = level
+                break  # Stop after finding the first higher level
+    print('Upper level name:')
+    print(upper_level.Name)
+
+    # Check if there's a level above
+    if upper_level:
+        # Filter windows on the upper level
+        elements = FilteredElementCollector(doc).WhereElementIsNotElementType().ToElements()
+        print('-----')
+        print(windowFamilyObject.Category)
+        print('-----')
+        print(upper_level.Id)
+        for elem in elements:
+            if elem.Category is not None:
+                if elem.Category.Id == windowFamilyObject.Category.Id:
+                    if elem.LevelId == upper_level.Id:
+                        print(elem)
+                        print(elem.LevelId)
+                        print('----')
+
+
+        # print(elements)
+
+        # Check if any window is directly above the current window
+        for upper_window in upper_windows:
+            # Compare bounding boxes (assuming windows are vertical)
+            if upper_window.MinX == windowFamilyObject.MinX and \
+               upper_window.MaxX == windowFamilyObject.MaxX:
+                return upper_window
+
+    return None
+
+# Example usage:
+upper_window = find_upper_window(host_object, wall_level_id, windowFamilyObject)
+
+if upper_window:
+    print("Window directly above found:", upper_window.Id)
+else:
+    print("No window directly above found")
+
+
+
+# def check_upper_floor_window(wall):
+#     """
+#     Checks if a floor exists above a wall and if that floor contains another window family object.
+#
+#     Args:
+#       wall: A Wall element.
+#
+#     Returns:
+#       A tuple containing two booleans:
+#           - has_upper_floor: True if a floor exists above the wall, False otherwise.
+#           - has_upper_floor_window: True if the upper floor contains another window family object, False otherwise.
+#     """
+#
+#     if not isinstance(wall, Wall):
+#         print("Error: Invalid element type provided.")
+#         return None, None
+#
+#     # try:
+#     # Get the wall's level
+#     # wall_level = wall.Level
+#     wall_level_id = wall.LevelId
+#     if wall_level_id:
+#         wall_level = doc.GetElement(wall_level_id)
+#     # print(wall_level)
+#     # Check if there's a level above the wall
+#
+#     all_levels = FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Levels).ToElements()
+#     upper_level = None
+#     for level in all_levels:
+#         if type(level) == LevelType:
+#             continue
+#         # print('hahahahahhahahhahahahahahahhahah')
+#         # print(level.Elevation)
+#         # print(wall_level.Elevation)
+#         if level.Elevation > wall_level.Elevation:
+#             upper_level = level
+#             break  # Stop after finding the first higher level
+#
+#     # print(upper_level)
+#     has_upper_floor = upper_level is not None
+#
+#     if not has_upper_floor:
+#         return has_upper_floor, False  # No upper floor, so no window
+#
+#     # Check for windows in the upper floor
+#     upper_floor_elements = FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Floors).WhereElementIsElementType().ToElements()
+#
+#     has_upper_floor_window = False
+#     for element in upper_floor_elements:
+#         if isinstance(element, FamilyInstance):
+#             print(element)
+#             # if element.SymbolName.lower() == "window":  # Adjust window family name comparison as needed
+#             #     has_upper_floor_window = True
+#             #     break  # Stop after finding one window
+#     return has_upper_floor, has_upper_floor_window
+#
+#     # except Exception as e:
+#     #     print("An error occurred", e)
+#     #     return None, None
+#
+#
+# # Example usage (assuming you have 'wall' defined)
+# has_upper_floor, has_upper_floor_window = check_upper_floor_window(host_object)
+#
+# if has_upper_floor:
+#     if has_upper_floor_window:
+#         print("There is a floor above the wall and it contains another window.")
+#     else:
+#         print("There is a floor above the wall, but it does not contain another window.")
+# else:
+#     print("There is no floor above the wall.")
 
 
 
