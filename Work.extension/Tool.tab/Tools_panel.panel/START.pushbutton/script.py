@@ -1,4 +1,5 @@
 # ------------------------------ IMPORTS ------------------------------
+import math
 import sys
 
 from Autodesk.Revit.ApplicationServices import *
@@ -114,37 +115,52 @@ def find_upper_window(wall, wall_level_id, windowFamilyObject):
     if upper_level:
         # Filter windows on the upper level
         elements = FilteredElementCollector(doc).WhereElementIsNotElementType().ToElements()
-        print('-----')
-        print(windowFamilyObject.Category)
-        print('-----')
-        print(upper_level.Id)
+        # print('-----')
+        # print(windowFamilyObject.Category)
+        # print('-----')
+        # print(upper_level.Id)
+        upper_windows = []
+        base_window_bbox = windowFamilyObject.get_BoundingBox(None)
+        base_window_x = base_window_bbox.Min.X
+        base_window_y = base_window_bbox.Min.Y
+        upperWindow = None
+        distance = float('inf')
         for elem in elements:
             if elem.Category is not None:
                 if elem.Category.Id == windowFamilyObject.Category.Id:
                     if elem.LevelId == upper_level.Id:
-                        print(elem)
-                        print(elem.LevelId)
-                        print('----')
-
-
-        # print(elements)
-
-        # Check if any window is directly above the current window
-        for upper_window in upper_windows:
-            # Compare bounding boxes (assuming windows are vertical)
-            if upper_window.MinX == windowFamilyObject.MinX and \
-               upper_window.MaxX == windowFamilyObject.MaxX:
-                return upper_window
-
+                        upper_windows.append(elem)
+                        if upperWindow is None:
+                            upperWindow = elem
+                            continue
+                        window_bbox = elem.get_BoundingBox(None)  # False for local coordinate system
+                        window_x = window_bbox.Min.X
+                        window_y = window_bbox.Min.Y
+                        new_distance = math.sqrt((window_x - base_window_x) ** 2 + (window_y - base_window_y) ** 2)
+                        # print('---')
+                        # print('distance', distance)
+                        if new_distance < distance:
+                            # print('added')
+                            distance = new_distance
+                            upperWindow = elem
+                        # print(elem)
+                        # print(elem.LevelId)
+                        # print('---')
+        # print('Best:')
+        # print(upperWindow)
+        # print(base_window_x, base_window_y)
+        # print(upperWindow.get_BoundingBox(None).Min.X, upperWindow.get_BoundingBox(None).Min.Y, upperWindow.Id)
+        if upperWindow is not None:
+            top_window_distance_cm = UnitUtils.ConvertToInternalUnits((upperWindow.get_BoundingBox(None).Min.Z - windowFamilyObject.get_BoundingBox(None).Max.Z) * 30.48, UnitTypeId.Centimeters)
+            return top_window_distance_cm
     return None
 
 # Example usage:
-upper_window = find_upper_window(host_object, wall_level_id, windowFamilyObject)
-
-if upper_window:
-    print("Window directly above found:", upper_window.Id)
+upper_distance = find_upper_window(host_object, wall_level_id, windowFamilyObject)
+if upper_distance is None:
+    pass
 else:
-    print("No window directly above found")
+    top_offset = upper_distance - UnitUtils.ConvertToInternalUnits(30, UnitTypeId.Centimeters)
 
 
 
@@ -561,112 +577,118 @@ else:
 
 
 # ----------------------------------------------------------------------------------------------------- Perpendicular shelter
-# floor_collector = FilteredElementCollector(doc).OfClass(Floor)
-# upper_floor = None
-# lower_floor = None
-# upper_floor_level_best_height = float('inf')
-# lower_floor_level_best_height = float('-inf')
-# for floor in floor_collector:
-#     floor_level_id = floor.LevelId
-#     if floor_level_id:
-#         floor_level = doc.GetElement(floor_level_id)
-#     else:
-#         print("floor does not have an associated level.")
-#     if floor_level and wall_level:
-#         if floor_level.Elevation > wall_level.Elevation:
-#             if floor_level.Elevation < upper_floor_level_best_height:
-#                 upper_floor_level_best_height = floor_level.Elevation
-#                 upper_floor = floor
-#         elif floor_level.Elevation <= wall_level.Elevation:
-#             if floor_level.Elevation > lower_floor_level_best_height:
-#                 lower_floor_level_best_height = floor_level.Elevation
-#                 lower_floor = floor
-#
-# if upper_floor:
-#     print("Upper Floor:", upper_floor.Name)
-#     lalala = upper_floor.Parameters
-#     upper_floor_height = None
-#     for param in lalala:
-#         if param.Definition.Name == 'Core Thickness':
-#             upper_floor_height = param.AsDouble()
-#             break
-#     if upper_floor_height is not None:
-#         upper_floor_in_centimeters = UnitUtils.ConvertToInternalUnits(upper_floor_height * 30.48,
-#                                                                       UnitTypeId.Centimeters)
-#         print('Top floor height in cm', upper_floor_height * 30.48)
-#     else:
-#         upper_floor_in_centimeters = UnitUtils.ConvertToInternalUnits(0, UnitTypeId.Centimeters)
-#     window_bbox = windowFamilyObject.get_BoundingBox(None)  # False for local coordinate system
-#     floor_bbox = upper_floor.get_BoundingBox(None)
-#     window_top_z = window_bbox.Max.Z
-#     floor_bottom_z = floor_bbox.Min.Z
-#     distance_z = floor_bottom_z - window_top_z
-#     top_floor_distance_cm = UnitUtils.ConvertToInternalUnits(distance_z * 30.48, UnitTypeId.Centimeters)
-#     print('Distance to top floor in cm', distance_z * 30.48)
-#
-# else:
-#     print("No upper floor found for the wall.")
-# if lower_floor:
-#     print("Lower Floor:", lower_floor.Name)
-#     lalala = lower_floor.Parameters
-#     for param in lalala:
-#         if param.Definition.Name == 'Core Thickness':
-#             lower_floor_height = param.AsDouble()
-#             break
-#     if lower_floor_height is not None:
-#         lower_floor_in_centimeters = UnitUtils.ConvertToInternalUnits(lower_floor_height * 30.48,
-#                                                                       UnitTypeId.Centimeters)
-#         print('Height of lower floor in cm', lower_floor_height * 30.48)
-#     else:
-#         lower_floor_in_centimeters = UnitUtils.ConvertToInternalUnits(0, UnitTypeId.Centimeters)
-#     window_bbox = windowFamilyObject.get_BoundingBox(None)  # False for local coordinate system
-#     floor_bbox = lower_floor.get_BoundingBox(None)
-#     window_top_z = window_bbox.Min.Z
-#     floor_bottom_z = floor_bbox.Max.Z
-#     distance_z = window_top_z - floor_bottom_z
-#     bottom_floor_distance_cm = UnitUtils.ConvertToInternalUnits(distance_z * 30.48, UnitTypeId.Centimeters)
-#     print('Distance to bottom floor in cm', distance_z * 30.48)
-# else:
-#     print("No lower floor found for the wall.")
-#
-#
-# transform = Transform.Identity
-# transform.Origin = window_origin
-# vector_perp = vector.CrossProduct(XYZ.BasisZ)
-# transform.BasisX = vector_perp
-# transform.BasisY = XYZ.BasisZ
-# transform.BasisZ = vector_perp.CrossProduct(XYZ.BasisZ)
-# section_box = BoundingBoxXYZ()
-# # section_box.Min = XYZ(-win_width, -(win_height * 2), -UnitUtils.ConvertToInternalUnits(80, UnitTypeId.Centimeters))
-# # section_box.Max = XYZ(win_width, (win_height * 2) + offset, UnitUtils.ConvertToInternalUnits(80, UnitTypeId.Centimeters))
-# offset_20cm = UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters)
-# offset_30cm = UnitUtils.ConvertToInternalUnits(30, UnitTypeId.Centimeters)
-# offset_50cm = UnitUtils.ConvertToInternalUnits(50, UnitTypeId.Centimeters)
-# offset_70cm = UnitUtils.ConvertToInternalUnits(70, UnitTypeId.Centimeters)
-# section_box.Min = XYZ(
-#     -wallDepth / 2 - offset_50cm, 0 - bottom_floor_distance_cm - lower_floor_in_centimeters - offset_30cm, win_width / 2
-# )
-# section_box.Max = XYZ(
-#     wallDepth / 2 + offset_70cm, win_height + top_floor_distance_cm + upper_floor_in_centimeters + offset_30cm, win_width / 2 + UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters)
-# )
-#
-# # glybyna(inner-outer) -> height
-#
-# section_box.Transform = transform
-# section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
-# views = FilteredElementCollector(doc).OfClass(View).ToElements()
-# viewTemplates = [v for v in views if v.IsTemplate and "Section_Reinforcement" in v.Name.ToString()]
-# win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
-# win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
-# # new_name = 'py_{}'.format(windowFamilyObject.Symbol.Family.Name)
-# new_name = 'py_MAMAD_Window_Section_2'
-# for i in range(10):
-#     try:
-#         win_elevation.Name = new_name
-#         print('Created a section: {}'.format(new_name))
-#         break
-#     except:
-#         new_name += '*'
+floor_collector = FilteredElementCollector(doc).OfClass(Floor)
+upper_floor = None
+lower_floor = None
+upper_floor_level_best_height = float('inf')
+lower_floor_level_best_height = float('-inf')
+for floor in floor_collector:
+    floor_level_id = floor.LevelId
+    if floor_level_id:
+        floor_level = doc.GetElement(floor_level_id)
+    else:
+        print("floor does not have an associated level.")
+    if floor_level and wall_level:
+        if floor_level.Elevation > wall_level.Elevation:
+            if floor_level.Elevation < upper_floor_level_best_height:
+                upper_floor_level_best_height = floor_level.Elevation
+                upper_floor = floor
+        elif floor_level.Elevation <= wall_level.Elevation:
+            if floor_level.Elevation > lower_floor_level_best_height:
+                lower_floor_level_best_height = floor_level.Elevation
+                lower_floor = floor
+
+if upper_floor:
+    print("Upper Floor:", upper_floor.Name)
+    lalala = upper_floor.Parameters
+    upper_floor_height = None
+    for param in lalala:
+        if param.Definition.Name == 'Core Thickness':
+            upper_floor_height = param.AsDouble()
+            break
+    if upper_floor_height is not None:
+        upper_floor_in_centimeters = UnitUtils.ConvertToInternalUnits(upper_floor_height * 30.48,
+                                                                      UnitTypeId.Centimeters)
+        print('Top floor height in cm', upper_floor_height * 30.48)
+    else:
+        upper_floor_in_centimeters = UnitUtils.ConvertToInternalUnits(0, UnitTypeId.Centimeters)
+    window_bbox = windowFamilyObject.get_BoundingBox(None)  # False for local coordinate system
+    floor_bbox = upper_floor.get_BoundingBox(None)
+    window_top_z = window_bbox.Max.Z
+    floor_bottom_z = floor_bbox.Min.Z
+    distance_z = floor_bottom_z - window_top_z
+    top_floor_distance_cm = UnitUtils.ConvertToInternalUnits(distance_z * 30.48, UnitTypeId.Centimeters)
+    print('Distance to top floor in cm', distance_z * 30.48)
+
+else:
+    print("No upper floor found for the wall.")
+if lower_floor:
+    print("Lower Floor:", lower_floor.Name)
+    lalala = lower_floor.Parameters
+    for param in lalala:
+        if param.Definition.Name == 'Core Thickness':
+            lower_floor_height = param.AsDouble()
+            break
+    if lower_floor_height is not None:
+        lower_floor_in_centimeters = UnitUtils.ConvertToInternalUnits(lower_floor_height * 30.48,
+                                                                      UnitTypeId.Centimeters)
+        print('Height of lower floor in cm', lower_floor_height * 30.48)
+    else:
+        lower_floor_in_centimeters = UnitUtils.ConvertToInternalUnits(0, UnitTypeId.Centimeters)
+    window_bbox = windowFamilyObject.get_BoundingBox(None)  # False for local coordinate system
+    floor_bbox = lower_floor.get_BoundingBox(None)
+    window_top_z = window_bbox.Min.Z
+    floor_bottom_z = floor_bbox.Max.Z
+    distance_z = window_top_z - floor_bottom_z
+    bottom_floor_distance_cm = UnitUtils.ConvertToInternalUnits(distance_z * 30.48, UnitTypeId.Centimeters)
+    print('Distance to bottom floor in cm', distance_z * 30.48)
+else:
+    print("No lower floor found for the wall.")
+
+
+transform = Transform.Identity
+transform.Origin = window_origin
+vector_perp = vector.CrossProduct(XYZ.BasisZ)
+transform.BasisX = vector_perp
+transform.BasisY = XYZ.BasisZ
+transform.BasisZ = vector_perp.CrossProduct(XYZ.BasisZ)
+section_box = BoundingBoxXYZ()
+# section_box.Min = XYZ(-win_width, -(win_height * 2), -UnitUtils.ConvertToInternalUnits(80, UnitTypeId.Centimeters))
+# section_box.Max = XYZ(win_width, (win_height * 2) + offset, UnitUtils.ConvertToInternalUnits(80, UnitTypeId.Centimeters))
+offset_20cm = UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters)
+offset_30cm = UnitUtils.ConvertToInternalUnits(30, UnitTypeId.Centimeters)
+offset_50cm = UnitUtils.ConvertToInternalUnits(50, UnitTypeId.Centimeters)
+offset_70cm = UnitUtils.ConvertToInternalUnits(70, UnitTypeId.Centimeters)
+section_box.Min = XYZ(
+    -wallDepth / 2 - offset_50cm, 0 - bottom_floor_distance_cm - lower_floor_in_centimeters - offset_30cm, win_width / 2
+)
+if upper_distance is None:
+    section_box.Max = XYZ(
+        wallDepth / 2 + offset_70cm, win_height + top_floor_distance_cm + upper_floor_in_centimeters + offset_30cm, win_width / 2 + UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters)
+    )
+else:
+    section_box.Max = XYZ(
+        wallDepth / 2 + offset_70cm, win_height + top_offset,
+        win_width / 2 + UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters)
+    )
+
+# glybyna(inner-outer) -> height
+
+section_box.Transform = transform
+section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
+views = FilteredElementCollector(doc).OfClass(View).ToElements()
+viewTemplates = [v for v in views if v.IsTemplate and "Section_Reinforcement" in v.Name.ToString()]
+win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
+win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
+# new_name = 'py_{}'.format(windowFamilyObject.Symbol.Family.Name)
+new_name = 'py_MAMAD_Window_Section_2'
+for i in range(10):
+    try:
+        win_elevation.Name = new_name
+        print('Created a section: {}'.format(new_name))
+        break
+    except:
+        new_name += '*'
 
 
 transaction.Commit()
