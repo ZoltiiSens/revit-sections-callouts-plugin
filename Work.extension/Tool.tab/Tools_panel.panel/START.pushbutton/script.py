@@ -20,6 +20,7 @@ print('HI!')
 
 
 # ------------------------------ Finctions ------------------------------
+# Old algorythm
 def find_upper_window(wall_lvl_id, current_window):
     """
     Finds a window directly above the given window on the level above and calculates distance.
@@ -67,6 +68,7 @@ def find_upper_window(wall_lvl_id, current_window):
     return None
 
 
+# Old code
 def find_floors_offsets(wall_lvl):
     floor_collector = FilteredElementCollector(doc).OfClass(Floor)
     upper_floor, lower_floor = None, None
@@ -136,8 +138,81 @@ def find_floors_offsets(wall_lvl):
         print("No lower floor found for the wall")
     return lower_floor_distance_cm, lower_floor_in_centimeters, upper_floor_distance_cm, upper_floor_in_centimeters
 
-# ------------------------------ MAIN ------------------------------
 
+def geographical_finding_algorythm(start_point, end_point, object_to_find_name = None, object_to_find_categoty = None):
+    # print(start_point)
+    # print(end_point)
+    # print(object_to_find_name)
+    # print(windowFamilyObject.Name)
+    # print(host_object.Name)
+    # Create a bounding box from start and end points
+
+    if object_to_find_name is None and object_to_find_categoty is None:
+        return None
+
+    outline = Outline(start_point, end_point)
+    bboxFilter = BoundingBoxIntersectsFilter(outline)
+    if object_to_find_categoty is not None:
+        allIntersections = FilteredElementCollector(doc).OfCategory(object_to_find_categoty).WherePasses(bboxFilter)
+    else:
+        allIntersections = FilteredElementCollector(doc).WherePasses(bboxFilter)
+    for intersec in allIntersections:
+        if intersec.Name == object_to_find_name:
+            print(intersec)
+    # intersections = FilteredElementCollector(doc, allIntersections)
+    # print(allIntersections)
+
+    # print(outline)
+    # print(bboxFilter)
+
+    # bbox = BoundingBoxIntersectsFilter(XYZ.Minimum(start_point, end_point), XYZ.Maximum(start_point, end_point))
+    #
+    # # Use FilteredElementCollector to find elements of the desired category (e.g., walls, doors)
+    # collector = FilteredElementCollector(doc)  # Replace 'doc' with your document variable
+    # filtered_elements = collector.OfCategory(
+    #     desired_category)  # Replace 'desired_category' with the category of the object
+    #
+    # # Apply bounding box filter and name filter
+    # filtered_elements = filtered_elements.WhereElementIsNotElementType()  # Exclude element types
+    # filtered_elements = filtered_elements.WherePasses(bbox)  # Apply bounding box filter
+    # filtered_elements = filtered_elements.OfNameLike(object_to_find_name)  # Apply name filter
+    #
+    # # Return the first element found (or None if not found)
+    # try:
+    #     return filtered_elements.FirstElement()
+    # except:
+    #     return None
+
+
+# def get_position_vector(window_object):
+#     print('haha')
+#     fam = window_object.Symbol.Family
+#     print(fam)
+#     famDoc = doc.EditFamily(fam)
+#     coll = FilteredElementCollector(famDoc).WhereElementIsNotElementType().ToElements()
+#     counter = 1
+#     for elem in coll:
+#         print('try', counter, len(coll))
+#         counter += 1
+#         try:
+#             if elem.Name == 'Extrusion':
+#                 print(elem)
+#                 break
+#         except AttributeError:
+#             pass
+    # print(window_object)
+    # print(window_object.GetSubComponentIds())
+    # print(window_object.GetCopingIds())
+    # print(window_object.GetFamilyPointPlacementReferences())
+    # for child_id in window_object.GetSubComponentIds():
+    #     print(child_id)
+    # for child_id in window_object.GetCopingIds():
+    #     print(child_id)
+    # for child_id in window_object.GetFamilyPointPlacementReferences():
+    #     print(child_id)
+
+
+# ------------------------------ MAIN ------------------------------
 selection = uidoc.Selection.GetElementIds()
 if len(selection) != 1:
     TaskDialog.Show("Selection Error", "Please select only one element. Plugin will now stop.")
@@ -145,8 +220,6 @@ if len(selection) != 1:
 windowFamilyObject = doc.GetElement(selection[0])  # type: FamilyInstance
 print("Selected Element:", windowFamilyObject.Symbol.Family.Name)
 
-transaction = Transaction(doc, 'Generate Window Sections')
-transaction.Start()
 
 window_origin = windowFamilyObject.Location.Point   # type: XYZ
 host_object = windowFamilyObject.Host               # type: Wall
@@ -167,6 +240,19 @@ else:
     print("Wall does not have an associated level. Plugin will now stop.")
     sys.exit()
 
+print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+
+
+
+
+# geographical_finding_algorythm(window_origin + XYZ(0, 0, win_height), window_origin + XYZ(0, 0, win_height + 300 / 30.48), object_to_find_name=windowFamilyObject.Name, object_to_find_categoty=None)
+# get_position_vector(windowFamilyObject)
+
+# print(windowFamilyObject.FacingOrientation)
+
+
+transaction = Transaction(doc, 'Generate Window Sections')
+transaction.Start()
 
 # def check_upper_floor_window(wall):
 #     """
@@ -396,23 +482,64 @@ else:
 
 
 # ---------------------------------------------------------------------------------------------------------- Front view
+# # Getting upper offset if upper floor exists
+# upper_distance = find_upper_window(wall_level_id, windowFamilyObject)
+# if upper_distance is None:
+#     top_offset = None
+# else:
+#     top_offset = upper_distance - UnitUtils.ConvertToInternalUnits(30, UnitTypeId.Centimeters)
+#
+# (lower_floor_distance_cm,
+#  lower_floor_in_centimeters,
+#  upper_floor_distance_cm,
+#  upper_floor_in_centimeters) = find_floors_offsets(wall_level)
+#
+#
 # transform = Transform.Identity
 # transform.Origin = window_origin
 # transform.BasisX = vector
 # transform.BasisY = XYZ.BasisZ
 # transform.BasisZ = vector.CrossProduct(XYZ.BasisZ)
 # section_box = BoundingBoxXYZ()
-# # section_box.Min = XYZ(-win_width / 2 - offset, 0 - offset, -win_depth)
-# # section_box.Max = XYZ(win_width / 2 + offset, win_height + offset, win_depth)
-# # section_box.Min = XYZ(-win_width, 0 - offset, -win_depth)
-# # section_box.Max = XYZ(win_width, win_height + offset, win_depth)
-# section_box.Min = XYZ(-win_width - (offset * 50), 0 - (offset * 50), -win_depth)
-# section_box.Max = XYZ(win_width + (offset * 50), win_height + (offset * 50), win_depth)
+# offset = UnitUtils.ConvertToInternalUnits(1, UnitTypeId.Centimeters)
+# # section_box.Min = XYZ(-win_width - (offset * 50), 0 - (offset * 50), -win_depth)
+# # section_box.Max = XYZ(win_width + (offset * 50), win_height + (offset * 50), win_depth)
+# offset_30cm = UnitUtils.ConvertToInternalUnits(30, UnitTypeId.Centimeters)
+# offset_120cm = UnitUtils.ConvertToInternalUnits(120, UnitTypeId.Centimeters)
+#
+#
+# section_box.Min = XYZ(
+#     -win_width - offset_120cm, 0 - lower_floor_distance_cm - lower_floor_in_centimeters - offset_30cm, -win_depth
+# )
+#
+# if top_offset is None:
+#     section_box.Max = XYZ(
+#         win_width + offset_120cm, win_height + upper_floor_distance_cm + upper_floor_in_centimeters + offset_30cm,
+#         win_depth
+#     )
+# else:
+#     section_box.Max = XYZ(
+#         win_width + offset_120cm, win_height + top_offset,
+#         win_depth
+#     )
+#
+#
+# # section_box.Transform = transform
+# # section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
+# # win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
+# # new_name = 'py_{}'.format(windowFamilyObject.Symbol.Family.Name)
+#
+#
 # section_box.Transform = transform
 # section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
+# views = FilteredElementCollector(doc).OfClass(View).ToElements()
+# viewTemplates = [v for v in views if v.IsTemplate and "Window_View" in v.Name.ToString()]
 # win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
-# # new_name = 'py_{}'.format(windowFamilyObject.Symbol.Family.Name)
-# new_name = 'py_MAMAD_Window_Front_View'
+# win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
+# new_name = 'MAMAD_Window_Front_View'
+#
+# # win_elevation.Name = new_name + '123123'
+# # print('Created a section: {}'.format(new_name))
 #
 # for i in range(10):
 #     try:
@@ -456,7 +583,7 @@ else:
 
 # # ----------------------------------------------------------------------------------------------------- Perpendicular window
 # Getting floors
-
+#
 upper_distance = find_upper_window(wall_level_id, windowFamilyObject)
 if upper_distance is None:
     top_offset = None
@@ -525,56 +652,56 @@ for i in range(10):
         new_name += '*'
 
 
-# ----------------------------------------------------------------------------------------------- Perpendicular shelter
-# Getting upper offset if upper floor exists
-upper_distance = find_upper_window(wall_level_id, windowFamilyObject)
-if upper_distance is None:
-    top_offset = None
-else:
-    top_offset = upper_distance - UnitUtils.ConvertToInternalUnits(30, UnitTypeId.Centimeters)
-
-(lower_floor_distance_cm,
- lower_floor_in_centimeters,
- upper_floor_distance_cm,
- upper_floor_in_centimeters) = find_floors_offsets(wall_level)
-
-transform = Transform.Identity
-transform.Origin = window_origin
-vector_perp = vector.CrossProduct(XYZ.BasisZ)
-transform.BasisX = vector_perp
-transform.BasisY = XYZ.BasisZ
-transform.BasisZ = vector_perp.CrossProduct(XYZ.BasisZ)
-section_box = BoundingBoxXYZ()
-offset_30cm = UnitUtils.ConvertToInternalUnits(30, UnitTypeId.Centimeters)
-offset_50cm = UnitUtils.ConvertToInternalUnits(50, UnitTypeId.Centimeters)
-offset_70cm = UnitUtils.ConvertToInternalUnits(70, UnitTypeId.Centimeters)
-section_box.Min = XYZ(
-    -wallDepth / 2 - offset_50cm, 0 - lower_floor_distance_cm - lower_floor_in_centimeters - offset_30cm, win_width / 2
-)
-if top_offset is None:
-    section_box.Max = XYZ(
-        wallDepth / 2 + offset_70cm, win_height + upper_floor_distance_cm + upper_floor_in_centimeters + offset_30cm,
-        win_width / 2 + UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters)
-    )
-else:
-    section_box.Max = XYZ(
-        wallDepth / 2 + offset_70cm, win_height + top_offset,
-        win_width / 2 + UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters)
-    )
-
-section_box.Transform = transform
-section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
-views = FilteredElementCollector(doc).OfClass(View).ToElements()
-viewTemplates = [v for v in views if v.IsTemplate and "Section_Reinforcement" in v.Name.ToString()]
-win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
-win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
-new_name = 'MAMAD_Window_Section_2'
-for i in range(10):
-    try:
-        win_elevation.Name = new_name
-        print('Created a section: {}'.format(new_name))
-        break
-    except:
-        new_name += '*'
+# # ----------------------------------------------------------------------------------------------- Perpendicular shelter
+# # Getting upper offset if upper floor exists
+# upper_distance = find_upper_window(wall_level_id, windowFamilyObject)
+# if upper_distance is None:
+#     top_offset = None
+# else:
+#     top_offset = upper_distance - UnitUtils.ConvertToInternalUnits(30, UnitTypeId.Centimeters)
+#
+# (lower_floor_distance_cm,
+#  lower_floor_in_centimeters,
+#  upper_floor_distance_cm,
+#  upper_floor_in_centimeters) = find_floors_offsets(wall_level)
+#
+# transform = Transform.Identity
+# transform.Origin = window_origin
+# vector_perp = vector.CrossProduct(XYZ.BasisZ)
+# transform.BasisX = vector_perp
+# transform.BasisY = XYZ.BasisZ
+# transform.BasisZ = vector_perp.CrossProduct(XYZ.BasisZ)
+# section_box = BoundingBoxXYZ()
+# offset_30cm = UnitUtils.ConvertToInternalUnits(30, UnitTypeId.Centimeters)
+# offset_50cm = UnitUtils.ConvertToInternalUnits(50, UnitTypeId.Centimeters)
+# offset_70cm = UnitUtils.ConvertToInternalUnits(70, UnitTypeId.Centimeters)
+# section_box.Min = XYZ(
+#     -wallDepth / 2 - offset_50cm, 0 - lower_floor_distance_cm - lower_floor_in_centimeters - offset_30cm, win_width / 2
+# )
+# if top_offset is None:
+#     section_box.Max = XYZ(
+#         wallDepth / 2 + offset_70cm, win_height + upper_floor_distance_cm + upper_floor_in_centimeters + offset_30cm,
+#         win_width / 2 + UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters)
+#     )
+# else:
+#     section_box.Max = XYZ(
+#         wallDepth / 2 + offset_70cm, win_height + top_offset,
+#         win_width / 2 + UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters)
+#     )
+#
+# section_box.Transform = transform
+# section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
+# views = FilteredElementCollector(doc).OfClass(View).ToElements()
+# viewTemplates = [v for v in views if v.IsTemplate and "Section_Reinforcement" in v.Name.ToString()]
+# win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
+# win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
+# new_name = 'MAMAD_Window_Section_2'
+# for i in range(10):
+#     try:
+#         win_elevation.Name = new_name
+#         print('Created a section: {}'.format(new_name))
+#         break
+#     except:
+#         new_name += '*'
 
 transaction.Commit()
