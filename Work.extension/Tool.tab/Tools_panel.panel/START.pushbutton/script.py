@@ -6,6 +6,9 @@ from Autodesk.Revit.ApplicationServices import *
 from Autodesk.Revit.UI import *
 from Autodesk.Revit.DB import *
 
+from Autodesk.Revit.DB.Structure import *
+from System.Collections.Generic import List
+
 # from pyrevit import forms
 
 
@@ -23,8 +26,8 @@ print('HI!')
 
 # ------------------------------ Functions ------------------------------
 def geographical_finding_algorythm(start_point, end_point, object_to_find_name=None, object_to_find_categoty=None,
-                                   ignore_id=None):
-    if object_to_find_name is None and object_to_find_categoty is None:
+                                   object_to_find_builtin_categoty=None, ignore_id=None):
+    if object_to_find_name is None and object_to_find_categoty is None and object_to_find_builtin_categoty is None:
         return None
 
     min_x, max_x = min(start_point.X, end_point.X), max(start_point.X, end_point.X)
@@ -43,12 +46,18 @@ def geographical_finding_algorythm(start_point, end_point, object_to_find_name=N
                 if ignore_id == intersec.Id:
                     continue
                 intersections.append(intersec)
-    else:
+    elif object_to_find_name is not None:
         for intersec in allIntersections:
             if intersec.Name == object_to_find_name:
                 if ignore_id == intersec.Id:
                     continue
                 intersections.append(intersec)
+    elif object_to_find_builtin_categoty is not None:
+        allIntersections = allIntersections.OfCategory(object_to_find_builtin_categoty)
+        for intersec in allIntersections:
+            if ignore_id == intersec.Id:
+                continue
+            intersections.append(intersec)
     return intersections
 
 
@@ -142,6 +151,109 @@ def find_floors_offsets(current_window):
     return top_offset_in_cm, bottom_offset_in_cm
 
 
+def find_rebars_by_quantity_and_spacing(view, start_point, end_point, quantity, spacing, which_to_show):
+    rebars = geographical_finding_algorythm(
+        start_point,
+        end_point,
+        object_to_find_builtin_categoty=BuiltInCategory.OST_Rebar)
+    target_rebar = None
+    for reb in rebars:
+        if spacing - 0.5 < reb.MaxSpacing * 30.48 < spacing + 0.5 and reb.Quantity == quantity:
+            target_rebar = reb
+            break
+    if target_rebar is None:
+        print('Can\'t find rebar set(front view)')
+    else:
+        target_rebar.SetUnobscuredInView(doc.ActiveView, True)
+        target_rebar.SetPresentationMode(view, RebarPresentationMode.Select)
+        for i in range(target_rebar.NumberOfBarPositions):
+            target_rebar.SetBarHiddenStatus(view, i, True)
+        target_rebar.SetBarHiddenStatus(view, which_to_show, False)
+
+
+def find_rebars_on_view(view):
+    return FilteredElementCollector(doc, view.Id).OfCategory(BuiltInCategory.OST_Rebar).WhereElementIsNotElementType().ToElements()
+
+
+# def create_rebar_tag(rebar, view, tag_type=None, orientation=0):
+#     '''
+#
+#     :param rebar:
+#     :param view:
+#     :param tag_type:
+#     :param orientation: 0 == Horizontal, 1 == Vertical
+#     :return:
+#     '''
+#
+#     rebar_set = doc.GetElement(rebar.Id)
+#     if not rebar_set:
+#         raise Exception("Rebar set not found")
+#
+#
+#     # Create a tag for the rebar set
+#     tag_mode = TagMode.TM_ADDBY_CATEGORY
+#     tag_orientation = TagOrientation.Horizontal
+#
+#     # Find a valid location for the tag
+#     # For simplicity, place it at the centroid of the bounding box
+#     rebar_bbox = rebar.get_BoundingBox(None)
+#     rebar_point = XYZ(
+#         (rebar_bbox.Min.X + rebar_bbox.Max.X) / 2,
+#         (rebar_bbox.Min.Y + rebar_bbox.Max.Y) / 2,
+#         (rebar_bbox.Min.Z + rebar_bbox.Max.Z) / 2,
+#     )
+#
+#     # Create the tag
+#     rebar_tag = IndependentTag.Create(doc, view.Id, Reference(rebar_set), True, tag_mode, tag_orientation,
+#                                       rebar_point)
+#
+#     if not rebar_tag:
+#         raise Exception("Failed to create rebar tag")
+
+
+def get_tag_types():
+    familySymbols = FilteredElementCollector(doc).OfClass(FamilySymbol)
+    result = {}
+    for famS in familySymbols:
+        name = famS.get_Parameter(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM).AsString()
+        if 'Horizontal_Bars' in name:
+            result['Horizontal_Bars'] = famS
+        if 'Column_Vertical' in name:
+            result['Column_Vertical'] = famS
+        if 'Wall&Col_Vertical+Length' in name:
+            result['Wall&Col_Vertical+Length'] = famS
+        if 'Link&U-Shape+Length' in name:
+            result['Link&U-Shape+Length'] = famS
+    return result
+
+
+def create_rebar_tag(view, all_rebars, tag_mode, tag_orientation, tag_type_name, tag_position, partitionName):
+    filtered_rebars = []
+    for rebar in all_rebars:
+        if rebar.LookupParameter("Partition").AsString() == partitionName:
+            filtered_rebars.append(rebar)
+    tag = None
+    for i, rebar in enumerate(filtered_rebars):
+        for subelement in rebar.GetSubelements():
+            if tag is None:
+                tag = IndependentTag.Create(
+                    doc,
+                    view.Id,
+                    subelement.GetReference(),
+                    True,
+                    tag_mode,
+                    tag_orientation,
+                    XYZ(0, 0, 3))
+                tag.ChangeTypeId(tagTypes[tag_type_name].Id)
+                tag.TagHeadPosition = tag_position
+                continue
+            lll = List[Reference]()
+            lll.Add(subelement.GetReference())
+            tag.AddReferences(lll)
+    return tag
+
+
+
 # ------------------------------ MAIN ------------------------------
 selection = uidoc.Selection.GetElementIds()
 if len(selection) != 1:
@@ -150,7 +262,10 @@ if len(selection) != 1:
 windowFamilyObject = doc.GetElement(selection[0])
 print("Selected Element:", windowFamilyObject.Symbol.Family.Name)
 
+tagTypes = get_tag_types()
+
 window_origin = windowFamilyObject.Location.Point
+window_bbox = windowFamilyObject.get_BoundingBox(None)
 host_object = windowFamilyObject.Host
 win_height = windowFamilyObject.Symbol.get_Parameter(BuiltInParameter.GENERIC_HEIGHT).AsDouble()
 win_width = windowFamilyObject.Symbol.get_Parameter(BuiltInParameter.DOOR_WIDTH).AsDouble()
@@ -180,6 +295,7 @@ def get_front_view():
         object_to_find_name=windowFamilyObject.Name,
         ignore_id=windowFamilyObject.Id)
     left_offset = UnitUtils.ConvertToInternalUnits(120, UnitTypeId.Centimeters)
+    print("windows", windows)
     if len(windows):
         best_distance = float('inf')
         for window in windows:
@@ -239,6 +355,241 @@ def get_front_view():
     viewTemplates = [v for v in views if v.IsTemplate and "Window_View" in v.Name.ToString()]
     win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
     win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
+
+    left_rebar_start_point = XYZ(
+        window_bbox.Min.X + left_offset * get_wall_direction_vector(host_object).X,
+        window_bbox.Min.Y + left_offset * get_wall_direction_vector(host_object).Y,
+        window_bbox.Min.Z
+    )
+    left_rebar_end_point = XYZ(
+        window_bbox.Max.X + left_offset * get_wall_direction_vector(host_object).X,
+        window_bbox.Max.Y + left_offset * get_wall_direction_vector(host_object).Y,
+        window_bbox.Max.Z
+    )
+    find_rebars_by_quantity_and_spacing(win_elevation, window_bbox.Min, window_bbox.Max, 5, 20, 3)
+    find_rebars_by_quantity_and_spacing(win_elevation, window_bbox.Min, window_bbox.Max, 8, 10, 2)
+    find_rebars_by_quantity_and_spacing(win_elevation, left_rebar_start_point, left_rebar_end_point, 5, 20, 3)
+    find_rebars_by_quantity_and_spacing(win_elevation, left_rebar_start_point, left_rebar_end_point, 8, 10, 2)
+
+    all_rebars = find_rebars_on_view(win_elevation)
+    rebar_ids_to_hide = List[ElementId]()
+    for reb in all_rebars:
+        if reb.GetHostId() != host_object.Id:
+            rebar_ids_to_hide.Add(reb.Id)
+    win_elevation.HideElements(rebar_ids_to_hide)
+
+    create_rebar_tag(
+        win_elevation,
+        all_rebars,
+        TagMode.TM_ADDBY_CATEGORY,
+        TagOrientation.Horizontal,
+        'Horizontal_Bars',
+        window_origin + XYZ(1, 1, win_height + 1.3),
+        'Window_Detail_1')
+
+    # filtered_top_rebars = []
+    # for rebar in all_rebars:
+    #     if rebar.LookupParameter("Partition").AsString() == "Window_Detail_1":
+    #         filtered_top_rebars.append(rebar)
+    # tag_mode = TagMode.TM_ADDBY_CATEGORY
+    # tag_orientation = TagOrientation.Horizontal
+    #
+    # tag = None
+    # for i, rebar in enumerate(filtered_top_rebars):
+    #     for subelement in rebar.GetSubelements():
+    #         if tag is None:
+    #             tag = IndependentTag.Create(
+    #                 doc,
+    #                 win_elevation.Id,
+    #                 subelement.GetReference(),
+    #                 True,
+    #                 tag_mode,
+    #                 tag_orientation,
+    #                 XYZ(0, 0, 3))
+    #             tag.ChangeTypeId(tagTypes['Horizontal_Bars'].Id)
+    #             tag.TagHeadPosition = window_origin + XYZ(1, 1, win_height + 1.3)
+    #             continue
+    #         lll = List[Reference]()
+    #         lll.Add(subelement.GetReference())
+    #         tag.AddReferences(lll)
+
+        # rebar_location_curves = rebar.GetCenterlineCurves(1, 0, 0, MultiplanarOption.IncludeAllMultiplanarCurves, 0)
+        #
+        # if rebar_location_curves:
+        #     rebar_location = rebar_location_curves[0]
+        #     tag_location = rebar_location.GetEndPoint(0)  # Tag at the start point of the rebar location line
+        #
+        #     # Try to find a valid geometry reference
+        #     reference_to_tag = None
+        #     options = Options()
+        #     geometry_element = rebar.get_Geometry(options)
+        #
+        #     for geom_obj in geometry_element:
+        #         if isinstance(geom_obj, Solid):
+        #             for face in geom_obj.Faces:
+        #                 reference_to_tag = face.Reference
+        #                 break
+        #         if reference_to_tag:
+        #             break
+        #
+        #     if reference_to_tag:
+        #         # Create a new IndependentTag
+        #         rebar_tag = IndependentTag.Create(doc, view.Id, reference_to_tag, False, tag_mode, tag_orientation,
+        #                                           tag_location)
+
+    filtered_bottom_rebars = []
+    for rebar in all_rebars:
+        if rebar.LookupParameter("Partition").AsString() == "Window_Detail_3":
+            filtered_bottom_rebars.append(rebar)
+    tag_mode = TagMode.TM_ADDBY_CATEGORY
+    tag_orientation = TagOrientation.Horizontal
+
+    tag = None
+    for i, rebar in enumerate(filtered_bottom_rebars):
+        for subelement in rebar.GetSubelements():
+            if tag is None:
+                tag = IndependentTag.Create(
+                    doc,
+                    win_elevation.Id,
+                    subelement.GetReference(),
+                    True,
+                    tag_mode,
+                    tag_orientation,
+                    XYZ(0, 0, 3))
+                tag.ChangeTypeId(tagTypes['Horizontal_Bars'].Id)
+                tag.TagHeadPosition = window_origin + XYZ(1, 1, -1.3)
+                continue
+            lll = List[Reference]()
+            lll.Add(subelement.GetReference())
+            tag.AddReferences(lll)
+
+    filtered_left_rebars = []
+    for rebar in all_rebars:
+        if rebar.LookupParameter("Partition").AsString() == "Window_Detail_2":
+            filtered_left_rebars.append(rebar)
+    tag_mode = TagMode.TM_ADDBY_CATEGORY
+    tag_orientation = TagOrientation.Vertical
+
+    tag = None
+    for i, rebar in enumerate(filtered_bottom_rebars):
+        for subelement in rebar.GetSubelements():
+            if tag is None:
+                tag = IndependentTag.Create(
+                    doc,
+                    win_elevation.Id,
+                    subelement.GetReference(),
+                    True,
+                    tag_mode,
+                    tag_orientation,
+                    XYZ(0, 0, 3))
+                tag.ChangeTypeId(tagTypes['Column_Vertical'].Id)
+                tag.TagHeadPosition = window_origin + XYZ((win_width + 1.5) * vector.X, (win_width + 1.5) * vector.Y, win_height / 2)
+                continue
+            lll = List[Reference]()
+            lll.Add(subelement.GetReference())
+            tag.AddReferences(lll)
+
+    filtered_right1_rebars = []
+    for rebar in all_rebars:
+        if rebar.LookupParameter("Partition").AsString() == "Window_Detail_4":
+            filtered_right1_rebars.append(rebar)
+    tag_mode = TagMode.TM_ADDBY_CATEGORY
+    tag_orientation = TagOrientation.Vertical
+    print(filtered_right1_rebars)
+
+    tag = None
+    for i, rebar in enumerate(filtered_right1_rebars):
+        for subelement in rebar.GetSubelements():
+            if tag is None:
+                print('Created')
+                tag = IndependentTag.Create(
+                    doc,
+                    win_elevation.Id,
+                    subelement.GetReference(),
+                    True,
+                    tag_mode,
+                    tag_orientation,
+                    XYZ(0, 0, 3))
+                tag.ChangeTypeId(tagTypes['Column_Vertical'].Id)
+                tag.TagHeadPosition = window_origin + XYZ(-(win_width + 2) * vector.X, -(win_width + 2) * vector.Y, win_height / 2)
+                continue
+            print('ref added')
+            lll = List[Reference]()
+            lll.Add(subelement.GetReference())
+            tag.AddReferences(lll)
+
+    filtered_right2_rebars = []
+    for rebar in all_rebars:
+        if rebar.LookupParameter("Partition").AsString() == "Window_Detail_5":
+            filtered_right2_rebars.append(rebar)
+    tag_mode = TagMode.TM_ADDBY_CATEGORY
+    tag_orientation = TagOrientation.Vertical
+    print(filtered_right2_rebars)
+
+    tag = None
+    for i, rebar in enumerate(filtered_right2_rebars):
+        for subelement in rebar.GetSubelements():
+            if tag is None:
+                print('Created')
+                tag = IndependentTag.Create(
+                    doc,
+                    win_elevation.Id,
+                    subelement.GetReference(),
+                    True,
+                    tag_mode,
+                    tag_orientation,
+                    XYZ(0, 0, 3))
+                tag.ChangeTypeId(tagTypes['Column_Vertical'].Id)
+                tag.TagHeadPosition = window_origin + XYZ(-(win_width / 2 + 1) * vector.X, -(win_width / 2 + 1) * vector.Y, win_height / 2)
+                continue
+            print('ref added')
+            lll = List[Reference]()
+            lll.Add(subelement.GetReference())
+            tag.AddReferences(lll)
+
+
+    filtered_right3_rebars = []
+    for rebar in all_rebars:
+        if rebar.LookupParameter("Partition").AsString() == "Window_Detail_5":
+            filtered_right3_rebars.append(rebar)
+    tag_mode = TagMode.TM_ADDBY_CATEGORY
+    tag_orientation = TagOrientation.Vertical
+    print(filtered_right3_rebars)
+
+    tag = None
+    for i, rebar in enumerate(filtered_right3_rebars):
+        for subelement in rebar.GetSubelements():
+            if tag is None:
+                print('Created')
+                tag = IndependentTag.Create(
+                    doc,
+                    win_elevation.Id,
+                    subelement.GetReference(),
+                    True,
+                    tag_mode,
+                    tag_orientation,
+                    XYZ(0, 0, 3))
+                tag.ChangeTypeId(tagTypes['Column_Vertical'].Id)
+                tag.TagHeadPosition = window_origin + XYZ(-(win_width / 2 + 1) * vector.X,
+                                                          -(win_width / 2 + 1) * vector.Y, win_height / 2)
+                continue
+            print('ref added')
+            lll = List[Reference]()
+            lll.Add(subelement.GetReference())
+            tag.AddReferences(lll)
+
+
+
+
+    # all_rebars = find_rebars_on_view(win_elevation)
+    # for reb in all_rebars:
+    #     if '14 : Shape BM_00' in reb.Name:
+    #         print(reb, reb.Id)
+
+    # my_rebar = doc.GetElement(ElementId(2850024))
+    # create_rebar_tag(my_rebar, win_elevation)
+
+
     new_name = 'MAMAD_Window_Front_View'
     for i in range(10):
         try:
@@ -251,41 +602,6 @@ def get_front_view():
 
 # -------------------------------------------------------------------------------- From down to up --- SHOULD BE CALLOUT
 def get_callout():
-    current_window_level_id = windowFamilyObject.LevelId
-    current_window_level = doc.GetElement(current_window_level_id)
-    # newViewFamilyType = createdoc.NewViewPlan('callout_view', current_window_level, ViewPlanType.FloorPlan)
-    # newViewFamilyType = ViewPlan.Create('callout_view', current_window_level, ViewPlanType.FloorPlan)
-
-    view_types = FilteredElementCollector(doc).OfClass(ViewFamilyType).ToElements()
-
-    # TODO:
-    #  Structural plan (not floor)
-
-    # print('123123123')
-    # for vt in view_types:
-    #     print(vt)
-    # print('123123123')
-
-    fec = FilteredElementCollector(doc).OfClass(ViewFamilyType)
-    for x in fec:
-        if ViewFamily.StructuralPlan == x.ViewFamily:
-            fec = x
-            break
-
-    print(fec)
-
-    structuralPlan = ViewPlan.Create(doc, fec.Id, current_window_level_id)
-
-
-    # view_types_plans = [vt for vt in view_types if vt.ViewFamily == ViewFamily.FloorPlan]
-    # floor_plan_type = view_types_plans[0]
-    #
-    # newViewFamilyType = ViewPlan.Create(
-    #     doc,
-    #     floor_plan_type.Id,
-    #     current_window_level_id
-    # )
-
     end_point_left = window_origin + (win_width + 200 / 30.48) * get_wall_direction_vector(host_object)
     end_point_right = window_origin - (win_width + 200 / 30.48) * get_wall_direction_vector(host_object)
 
@@ -294,16 +610,19 @@ def get_callout():
         end_point_left,
         object_to_find_name=windowFamilyObject.Name,
         ignore_id=windowFamilyObject.Id)
-    left_offset = 120 / 30.48
+    left_point = window_origin + (win_width + 120 / 30.48) * get_wall_direction_vector(host_object)
+    print("left point 120")
     if len(windows):
         best_distance = float('inf')
         for window in windows:
-            distance = abs(math.sqrt(
-                (window_origin.Y - window.Location.Point.Y) ** 2 + (window_origin.X - window.Location.Point.X) ** 2))
+            distance = abs(math.sqrt((window_origin.Y - window.Location.Point.Y) ** 2 + (window_origin.X - window.Location.Point.X) ** 2))
             if distance < best_distance:
                 best_distance = distance
-        if len(windows):
-            left_offset = (best_distance - win_width) * 30.48
+                left_point = window.Location.Point + XYZ(
+                    win_width / 2 * get_wall_direction_vector(host_object).X,
+                    win_width / 2 * get_wall_direction_vector(host_object).Y,
+                    0)
+                print("left point window", left_point)
     else:
         walls = geographical_finding_algorythm(
             window_origin,
@@ -312,11 +631,20 @@ def get_callout():
             ignore_id=host_object.Id)
         if len(walls):
             left_distance = walls[0].Location.Curve.Distance(window_origin)
-            left_offset = (left_distance - win_width - 10 / 30.48) * 30.48
-    windows = geographical_finding_algorythm(window_origin, end_point_right,
-                                             object_to_find_name=windowFamilyObject.Name,
-                                             ignore_id=windowFamilyObject.Id)
-    right_offset = 120
+            left_offset = (left_distance - win_width - 3 / 30.48)
+            left_point = window_origin + XYZ(
+                (win_width + left_offset) * get_wall_direction_vector(host_object).X,
+                (win_width + left_offset) * get_wall_direction_vector(host_object).Y,
+                0)
+            print("left point wall", left_point)
+
+    windows = geographical_finding_algorythm(
+        window_origin,
+        end_point_right,
+        object_to_find_name=windowFamilyObject.Name,
+        ignore_id=windowFamilyObject.Id)
+    right_point = window_origin - (win_width + 120 / 30.48) * get_wall_direction_vector(host_object)
+    print("right point 120")
     if len(windows):
         best_distance = float('inf')
         for window in windows:
@@ -324,37 +652,48 @@ def get_callout():
                 (window_origin.Y - window.Location.Point.Y) ** 2 + (window_origin.X - window.Location.Point.X) ** 2))
             if distance < best_distance:
                 best_distance = distance
-        right_offset = (best_distance - win_width) * 30.48
+                right_point = window.Location.Point - XYZ(
+                        win_width / 2 * get_wall_direction_vector(host_object).X,
+                        win_width / 2 * get_wall_direction_vector(host_object).Y,
+                        0)
+                print("right point window", right_point)
     else:
-        walls = geographical_finding_algorythm(window_origin, end_point_left,
-                                               object_to_find_categoty=host_object.Category, ignore_id=host_object.Id)
+        walls = geographical_finding_algorythm(
+            window_origin,
+            end_point_right,
+            object_to_find_categoty=host_object.Category,
+            ignore_id=host_object.Id)
         if len(walls):
             right_distance = walls[0].Location.Curve.Distance(window_origin)
-            right_offset = (right_distance - win_width - 10 / 30.48) * 30.48
+            right_offset = (right_distance - win_width - 22 / 30.48)
+            right_point = window_origin - XYZ(
+                (win_width + right_offset) * get_wall_direction_vector(host_object).X,
+                (win_width + right_offset) * get_wall_direction_vector(host_object).Y,
+                0)
+            print("right point wall", right_point)
 
+    print("points", left_point, right_point, window_origin)
 
-    # print(vector)
-    window_bbox = windowFamilyObject.get_BoundingBox(None)
+    # Plan creation
+    current_window_level_id = windowFamilyObject.LevelId
+    fec = FilteredElementCollector(doc).OfClass(ViewFamilyType)
+    for x in fec:
+        if ViewFamily.StructuralPlan == x.ViewFamily:
+            fec = x
+            break
+    print(fec)
+    structuralPlan = ViewPlan.Create(doc, fec.Id, current_window_level_id)
+
     perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
-    # print(perpendicular_vector)
-    # print('st_x', ((right_offset / 30.48 + win_width) * vector.X + perpendicular_vector.X * 10 / 30.48) * 30.48, window_bbox.Min.X, window_bbox.Max.X)
-    # print('st_y', ((right_offset / 30.48 + win_width) * vector.Y + perpendicular_vector.Y * 10 / 30.48) * 30.48, window_bbox.Min.Y, window_bbox.Max.Y)
-    # print('left offset', left_offset)
-    # print('right offset', right_offset)
 
     start_point = XYZ(
-        # window_bbox.Min.X + ((right_offset / 30.48 + win_width) * vector.X + perpendicular_vector.X * 0 / 30.48),
-        # window_bbox.Min.Y + ((right_offset / 30.48 + win_width) * vector.Y + perpendicular_vector.Y * 0 / 30.48),
-        window_bbox.Min.X + (right_offset / 30.48 + 2 * win_width) * vector.X,
-        window_bbox.Min.Y + (right_offset / 30.48 + 2 * win_width) * vector.Y,
+        right_point.X + (perpendicular_vector.X * (host_object.Width / 2 + 10 / 30.48)),
+        right_point.Y + (perpendicular_vector.Y * (host_object.Width / 2 + 10 / 30.48)),
         window_origin.Z
     )
-
     end_point = XYZ(
-        # window_bbox.Max.X - ((left_offset / 30.48 + win_width) * vector.X - perpendicular_vector.X * 0 / 30.48),
-        # window_bbox.Max.Y - ((left_offset / 30.48 + win_width) * vector.Y - perpendicular_vector.Y * 0 / 30.48),
-        window_bbox.Max.X - (left_offset / 30.48 + 2 * win_width) * vector.X,
-        window_bbox.Max.Y - (left_offset / 30.48 + 2 * win_width) * vector.Y,
+        left_point.X - (perpendicular_vector.X * (host_object.Width / 2 + 100 / 30.48)),
+        left_point.Y - (perpendicular_vector.Y * (host_object.Width / 2 + 100 / 30.48)),
         window_origin.Z + 20 / 30.48
     )
 
@@ -373,7 +712,6 @@ def get_callout():
     else:
         raise Exception("Sill Height parameter not found in the window family instance.")
 
-
     view_range = callout.GetViewRange()
     view_range.SetOffset(PlanViewPlane.TopClipPlane, 70 / 30.48 + sill_height_param)
     view_range.SetOffset(PlanViewPlane.CutPlane, 70 / 30.48 + sill_height_param)
@@ -389,9 +727,6 @@ def get_callout():
     except IndexError:
         print('!!! There is no view template "MAMAD_Window_Callout"')
 
-    # print(view_range)
-    # print(type(callout))
-
     new_name = 'MAMAD_Window_Detail'
     for i in range(10):
         try:
@@ -401,42 +736,10 @@ def get_callout():
         except:
             new_name += '*'
 
-
-
-
     parent_view_param = callout.get_Parameter(BuiltInParameter.SECTION_PARENT_VIEW_NAME)
     if parent_view_param and parent_view_param.IsReadOnly is False:
         parent_view_param.Set(ElementId.InvalidElementId)
     doc.Delete(structuralPlan.Id)
-
-    # print(type(host_object))
-    # wallDepth = UnitUtils.ConvertToInternalUnits(host_object.Width, UnitTypeId.Feet)
-    #
-    # transform = Transform.Identity
-    # transform.Origin = window_origin
-    # transform.BasisX = vector
-    # transform.BasisY = XYZ.BasisZ.CrossProduct(vector)
-    # transform.BasisZ = XYZ.BasisZ
-    # section_box = BoundingBoxXYZ()
-    # # section_box.Min = XYZ(-win_width - UnitUtils.ConvertToInternalUnits(70, UnitTypeId.Centimeters), -(wallDepth / 2 + UnitUtils.ConvertToInternalUnits(70, UnitTypeId.Centimeters)), win_height / 2)
-    # # section_box.Max = XYZ(win_width + UnitUtils.ConvertToInternalUnits(70, UnitTypeId.Centimeters), (wallDepth / 2) + UnitUtils.ConvertToInternalUnits(50, UnitTypeId.Centimeters), win_height / 2 + UnitUtils.ConvertToInternalUnits(20, UnitTypeId.Centimeters))
-    # section_box.Min = XYZ(-win_width - UnitUtils.ConvertToInternalUnits(70, UnitTypeId.Centimeters), -(wallDepth / 2 + UnitUtils.ConvertToInternalUnits(70, UnitTypeId.Centimeters)), win_height / 2)
-    # section_box.Max = XYZ(win_width + UnitUtils.ConvertToInternalUnits(70, UnitTypeId.Centimeters), (wallDepth / 2) + UnitUtils.ConvertToInternalUnits(50, UnitTypeId.Centimeters), win_height / 2 + UnitUtils.ConvertToInternalUnits(50, UnitTypeId.Centimeters))
-    # section_box.Transform = transform
-    # section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
-    # views = FilteredElementCollector(doc).OfClass(View).ToElements()
-    # viewTemplates = [v for v in views if v.IsTemplate and "Section_Reinforcement" in v.Name.ToString()]
-    # win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
-    # win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
-    # # new_name = 'py_{}'.format(windowFamilyObject.Symbol.Family.Name)
-    # new_name = 'py_MAMAD_Window_Section_1'
-    # for i in range(10):
-    #     try:
-    #         win_elevation.Name = new_name
-    #         print('Created a section: {}'.format(new_name))
-    #         break
-    #     except:
-    #         new_name += '*'
 
 
 # -------------------------------------------------------------------------------- Perpendicular window
@@ -546,10 +849,13 @@ def get_perpendicular_shelter_section():
 
 transaction = Transaction(doc, 'Generate Window Sections')
 transaction.Start()
-
-# get_front_view()
-# get_perpendicular_window_section()
-# get_perpendicular_shelter_section()
-get_callout()
+try:
+    get_front_view()
+    # get_perpendicular_window_section()
+    # get_perpendicular_shelter_section()
+    # get_callout()
+except Exception as err:
+    print('ERROR!', err)
+    print(vars(err))
 
 transaction.Commit()
