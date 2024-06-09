@@ -228,7 +228,6 @@ def get_tag_types():
 
     # for bdt in bendingDetailTypes:
     #     name = bdt.get_Parameter(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM).AsString()
-    #     name_param = bdt.get_Parameter(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM).AsString()
     #     print(name, bdt.Id, bdt.FamilyName, name_param)
     #     if 'Bending Detail 2 (No hooks)' in name:
     #         print('found')
@@ -250,6 +249,73 @@ def create_rebar_tag(view, all_rebars, tag_mode, tag_orientation, tag_type_name,
                     view.Id,
                     subelement.GetReference(),
                     True,
+                    tag_mode,
+                    tag_orientation,
+                    XYZ(0, 0, 3))
+                tag.ChangeTypeId(tagTypes[tag_type_name].Id)
+                tag.TagHeadPosition = tag_position
+                tag.LeaderEndCondition = leader_end_condition
+                if create_only_for_one:
+                    break
+                continue
+            lll = List[Reference]()
+            lll.Add(subelement.GetReference())
+            tag.AddReferences(lll)
+    return tag
+
+
+def create_rebar_tag_depending_on_rebar(view, all_rebars, tag_mode, tag_orientation, tag_type_name, tag_position, partitionName, leader_end_condition=LeaderEndCondition.Attached, create_only_for_one = False):
+    filtered_rebars = []
+    for rebar in all_rebars:
+        if rebar.LookupParameter("Partition").AsString() == partitionName:
+            filtered_rebars.append(rebar)
+    tag = None
+    for i, rebar in enumerate(filtered_rebars):
+        for subelement in rebar.GetSubelements():
+            if tag is None:
+                tag = IndependentTag.Create(
+                    doc,
+                    view.Id,
+                    subelement.GetReference(),
+                    True,
+                    tag_mode,
+                    tag_orientation,
+                    XYZ(0, 0, 0))
+                tag.ChangeTypeId(tagTypes[tag_type_name].Id)
+
+                rebar_bbox = rebar.get_BoundingBox(None)
+                print(rebar_bbox)
+                tag_coordinates = XYZ(
+                    (rebar_bbox.Min.X + rebar_bbox.Max.X) / 2,
+                    (rebar_bbox.Min.Y + rebar_bbox.Max.Y) / 2,
+                    (rebar_bbox.Min.Z + rebar_bbox.Max.Z) / 2
+                )
+                tag.TagHeadPosition = tag_position + tag_coordinates
+
+                tag.LeaderEndCondition = leader_end_condition
+                if create_only_for_one:
+                    break
+                continue
+            lll = List[Reference]()
+            lll.Add(subelement.GetReference())
+            tag.AddReferences(lll)
+    return tag
+
+
+def create_bending_detail(view, all_rebars, tag_mode, tag_orientation, tag_type_name, tag_position, partitionName, leader_end_condition=LeaderEndCondition.Attached, create_only_for_one = False):
+    filtered_rebars = []
+    for rebar in all_rebars:
+        if rebar.LookupParameter("Partition").AsString() == partitionName:
+            filtered_rebars.append(rebar)
+    tag = None
+    for i, rebar in enumerate(filtered_rebars):
+        for subelement in rebar.GetSubelements():
+            if tag is None:
+                tag = RebarBendingDetail.Create(
+                    doc,
+                    view.Id,
+                    subelement.GetReference(),
+                    0,
                     tag_mode,
                     tag_orientation,
                     XYZ(0, 0, 3))
@@ -622,7 +688,7 @@ def get_callout():
         'Horizontal_Bars',
         window_origin + XYZ(2 * perpendicular_vector.X,
                             2 * perpendicular_vector.Y, 0),
-        'Window_Detail_15')
+        'Window_Front_Detail_11')
 
     create_rebar_tag(
         callout,
@@ -632,7 +698,7 @@ def get_callout():
         'Horizontal_Bars',
         window_origin + XYZ(0.5 * vector.X + 2 * perpendicular_vector.X,
                             0.5 * vector.Y + 2 * perpendicular_vector.Y, 0),
-        'Window_Detail_16')
+        'Window_Front_Detail_10')
 
     create_rebar_tag(
         callout,
@@ -642,7 +708,7 @@ def get_callout():
         'Horizontal_Bars',
         window_origin + XYZ((win_width - 0.5) * vector.X + 2 * perpendicular_vector.X,
                             (win_width - 0.5) * vector.Y + 2 * perpendicular_vector.Y, 0),
-        'Window_Detail_17')
+        'Window_Front_Detail_9')
 
     create_rebar_tag(
         callout,
@@ -662,7 +728,7 @@ def get_callout():
         'Horizontal_Bars',
         window_origin + XYZ((win_width + 1.5) * vector.X + 2 * perpendicular_vector.X,
                             (win_width + 1.5) * vector.Y + 2 * perpendicular_vector.Y, 0),
-        'Window_Detail_18',
+        'Window_Front_Detail_4',
         create_only_for_one=True)
 
     create_rebar_tag(
@@ -673,7 +739,7 @@ def get_callout():
         'Horizontal_Bars',
         window_origin + XYZ((win_width + 1) * vector.X + 2 * perpendicular_vector.X,
                             (win_width + 1) * vector.Y + 2 * perpendicular_vector.Y, 0),
-        'Window_Detail_19',
+        'Window_Front_Detail_3',
         create_only_for_one=True)
 
     create_rebar_tag(
@@ -756,91 +822,200 @@ def get_perpendicular_window_section():
     # win_elevation.HideElements(rebar_ids_to_hide)
 
     perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
-    create_rebar_tag(
+
+    create_rebar_tag_depending_on_rebar(
         win_elevation,
         all_rebars,
         TagMode.TM_ADDBY_CATEGORY,
         TagOrientation.Horizontal,
         'Horizontal_Bars',
-        window_origin + XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, -(win_height + 1)),
+        XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, 0.8),
+        # XYZ(0, 0, 0),
         'Window_Detail_7')
 
-    create_rebar_tag(
+    # create_rebar_tag(
+    #     win_elevation,
+    #     all_rebars,
+    #     TagMode.TM_ADDBY_CATEGORY,
+    #     TagOrientation.Horizontal,
+    #     'Horizontal_Bars',
+    #     window_origin + XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, -(win_height + 1)),
+    #     'Window_Detail_7')
+
+    create_rebar_tag_depending_on_rebar(
         win_elevation,
         all_rebars,
         TagMode.TM_ADDBY_CATEGORY,
         TagOrientation.Horizontal,
         'Horizontal_Bars',
-        window_origin + XYZ(-1.8 * perpendicular_vector.X, -1.8 * perpendicular_vector.Y, -(win_height - 0.2)),
-        'Window_Detail_8',
+        XYZ(-2.4 * perpendicular_vector.X, -2.4 * perpendicular_vector.Y, 1),
+        'Window_Front_Detail_6',
         leader_end_condition=LeaderEndCondition.Free,
         create_only_for_one=True)
 
-    create_rebar_tag(
+    # create_rebar_tag(
+    #     win_elevation,
+    #     all_rebars,
+    #     TagMode.TM_ADDBY_CATEGORY,
+    #     TagOrientation.Horizontal,
+    #     'Horizontal_Bars',
+    #     window_origin + XYZ(-1.8 * perpendicular_vector.X, -1.8 * perpendicular_vector.Y, -(win_height - 0.2)),
+    #     'Window_Front_Detail_6',
+    #     leader_end_condition=LeaderEndCondition.Free,
+    #     create_only_for_one=True)
+
+    create_rebar_tag_depending_on_rebar(
         win_elevation,
         all_rebars,
         TagMode.TM_ADDBY_CATEGORY,
         TagOrientation.Horizontal,
         'Horizontal_Bars',
-        window_origin + XYZ(-1.8 * perpendicular_vector.X, -1.8 * perpendicular_vector.Y, -(win_height - 1)),
-        'Window_Detail_9',
+        XYZ(-1.29 * perpendicular_vector.X, -1.29 * perpendicular_vector.Y, 1.5),
+        'Window_Front_Detail_5',
         create_only_for_one=True)
 
-    create_rebar_tag(
+    # create_rebar_tag(
+    #     win_elevation,
+    #     all_rebars,
+    #     TagMode.TM_ADDBY_CATEGORY,
+    #     TagOrientation.Horizontal,
+    #     'Horizontal_Bars',
+    #     window_origin + XYZ(-1.8 * perpendicular_vector.X, -1.8 * perpendicular_vector.Y, -(win_height - 1)),
+    #     'Window_Front_Detail_5',
+    #     create_only_for_one=True)
+
+    create_rebar_tag_depending_on_rebar(
         win_elevation,
         all_rebars,
         TagMode.TM_ADDBY_CATEGORY,
         TagOrientation.Horizontal,
         'Horizontal_Bars',
-        window_origin + XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, -(win_height - 2.9)),
+        XYZ(-1.3 * perpendicular_vector.X, -1.3 * perpendicular_vector.Y, -0.1),
         'Window_Detail_3')
 
-    create_rebar_tag(
-        win_elevation,
-        all_rebars,
-        TagMode.TM_ADDBY_CATEGORY,
-        TagOrientation.Horizontal,
-        'Horizontal_Bars',
-        window_origin + XYZ(-1 * perpendicular_vector.X, -1 * perpendicular_vector.Y, 1),
-        'Window_Detail_10')
+    # create_rebar_tag(
+    #     win_elevation,
+    #     all_rebars,
+    #     TagMode.TM_ADDBY_CATEGORY,
+    #     TagOrientation.Horizontal,
+    #     'Horizontal_Bars',
+    #     window_origin + XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, -(win_height - 2.9)),
+    #     'Window_Detail_3')
 
-    create_rebar_tag(
+    create_rebar_tag_depending_on_rebar(
         win_elevation,
         all_rebars,
         TagMode.TM_ADDBY_CATEGORY,
         TagOrientation.Horizontal,
         'Horizontal_Bars',
-        window_origin + XYZ(-1 * perpendicular_vector.X, -1 * perpendicular_vector.Y, win_height - 1),
-        'Window_Detail_11')
+        XYZ(-1 * perpendicular_vector.X, -1 * perpendicular_vector.Y, 1),
+        'Window_Front_Detail_8')
 
-    create_rebar_tag(
+    # create_rebar_tag(
+    #     win_elevation,
+    #     all_rebars,
+    #     TagMode.TM_ADDBY_CATEGORY,
+    #     TagOrientation.Horizontal,
+    #     'Horizontal_Bars',
+    #     window_origin + XYZ(-1 * perpendicular_vector.X, -1 * perpendicular_vector.Y, 1),
+    #     'Window_Front_Detail_8')
+
+    create_rebar_tag_depending_on_rebar(
         win_elevation,
         all_rebars,
         TagMode.TM_ADDBY_CATEGORY,
         TagOrientation.Horizontal,
         'Horizontal_Bars',
-        window_origin + XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, win_height + 0.3),
+        XYZ(-1 * perpendicular_vector.X, -1 * perpendicular_vector.Y, - 1),
+        'Window_Front_Detail_7')
+
+    # create_rebar_tag(
+    #     win_elevation,
+    #     all_rebars,
+    #     TagMode.TM_ADDBY_CATEGORY,
+    #     TagOrientation.Horizontal,
+    #     'Horizontal_Bars',
+    #     window_origin + XYZ(-1 * perpendicular_vector.X, -1 * perpendicular_vector.Y, win_height - 1),
+    #     'Window_Front_Detail_7')
+
+    create_rebar_tag_depending_on_rebar(
+        win_elevation,
+        all_rebars,
+        TagMode.TM_ADDBY_CATEGORY,
+        TagOrientation.Horizontal,
+        'Horizontal_Bars',
+        XYZ(-1.3 * perpendicular_vector.X, -1.3 * perpendicular_vector.Y, 0.1),
         'Window_Detail_1')
 
-    create_rebar_tag(
+    # create_rebar_tag(
+    #     win_elevation,
+    #     all_rebars,
+    #     TagMode.TM_ADDBY_CATEGORY,
+    #     TagOrientation.Horizontal,
+    #     'Horizontal_Bars',
+    #     window_origin + XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, win_height + 0.3),
+    #     'Window_Detail_1')
+
+    create_rebar_tag_depending_on_rebar(
         win_elevation,
         all_rebars,
         TagMode.TM_ADDBY_CATEGORY,
         TagOrientation.Horizontal,
         'Horizontal_Bars',
-        window_origin + XYZ(-1.8 * perpendicular_vector.X, -1.8 * perpendicular_vector.Y, win_height + 0.9),
-        'Window_Detail_12',
+        XYZ(-2.4 * perpendicular_vector.X, -2.4 * perpendicular_vector.Y, 0),
+        'Window_Front_Detail_2',
         create_only_for_one=True)
 
-    create_rebar_tag(
+    # create_rebar_tag(
+    #     win_elevation,
+    #     all_rebars,
+    #     TagMode.TM_ADDBY_CATEGORY,
+    #     TagOrientation.Horizontal,
+    #     'Horizontal_Bars',
+    #     window_origin + XYZ(-1.8 * perpendicular_vector.X, -1.8 * perpendicular_vector.Y, win_height + 0.9),
+    #     'Window_Front_Detail_2',
+    #     create_only_for_one=True)
+
+    create_rebar_tag_depending_on_rebar(
         win_elevation,
         all_rebars,
         TagMode.TM_ADDBY_CATEGORY,
         TagOrientation.Horizontal,
         'Horizontal_Bars',
-        window_origin + XYZ(-1.8 * perpendicular_vector.X, -1.8 * perpendicular_vector.Y, win_height + 1.4),
-        'Window_Detail_13',
+        XYZ(-1.29 * perpendicular_vector.X, -1.29 * perpendicular_vector.Y, -0.47),
+        'Window_Front_Detail_1',
         create_only_for_one=True)
+
+    # create_rebar_tag(
+    #     win_elevation,
+    #     all_rebars,
+    #     TagMode.TM_ADDBY_CATEGORY,
+    #     TagOrientation.Horizontal,
+    #     'Horizontal_Bars',
+    #     window_origin + XYZ(-1.8 * perpendicular_vector.X, -1.8 * perpendicular_vector.Y, win_height + 1.4),
+    #     'Window_Front_Detail_1',
+    #     create_only_for_one=True)
+
+    # RebarBendingDetail.Create(
+    #     doc,
+    #     win_elevation.Id,
+    #
+    # )
+
+    # create_bending_detail(
+    #     doc,
+    #     win_elevation.Id
+    # )
+
+
+    # tag = IndependentTag.Create(
+    #     doc,
+    #     view.Id,
+    #     subelement.GetReference(),
+    #     True,
+    #     tag_mode,
+    #     tag_orientation,
+    #     XYZ(0, 0, 3))
 
 
 
@@ -901,6 +1076,7 @@ def get_perpendicular_shelter_section():
 
     all_rebars = find_rebars_on_view(win_elevation)
     perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
+
     create_rebar_tag(
         win_elevation,
         all_rebars,
@@ -918,7 +1094,7 @@ def get_perpendicular_shelter_section():
         TagOrientation.Horizontal,
         'Horizontal_Bars',
         window_origin + XYZ(-1.9 * perpendicular_vector.X, -1.9 * perpendicular_vector.Y, -(win_height - 0.8)),
-        'Window_Detail_8',
+        'Window_Front_Detail_6',
         leader_end_condition=LeaderEndCondition.Free,
         create_only_for_one= True)
 
@@ -929,7 +1105,7 @@ def get_perpendicular_shelter_section():
         TagOrientation.Horizontal,
         'Horizontal_Bars',
         window_origin + XYZ(-1.9 * perpendicular_vector.X, -1.9 * perpendicular_vector.Y, -(win_height - 1.2)),
-        'Window_Detail_9',
+        'Window_Front_Detail_5',
         leader_end_condition=LeaderEndCondition.Free,
         create_only_for_one=True)
 
@@ -972,7 +1148,7 @@ def get_perpendicular_shelter_section():
         TagOrientation.Horizontal,
         'Horizontal_Bars',
         window_origin + XYZ(-1.9 * perpendicular_vector.X, -1.9 * perpendicular_vector.Y, win_height + 2),
-        'Window_Detail_12',
+        'Window_Front_Detail_2',
         leader_end_condition=LeaderEndCondition.Free,
         create_only_for_one=True)
 
@@ -983,7 +1159,7 @@ def get_perpendicular_shelter_section():
         TagOrientation.Horizontal,
         'Horizontal_Bars',
         window_origin + XYZ(-1.9 * perpendicular_vector.X, -1.9 * perpendicular_vector.Y, win_height + 1.4),
-        'Window_Detail_13',
+        'Window_Front_Detail_1',
         leader_end_condition=LeaderEndCondition.Free,
         create_only_for_one=True)
 
@@ -1010,10 +1186,10 @@ def get_perpendicular_shelter_section():
 transaction = Transaction(doc, 'Generate Window Sections')
 transaction.Start()
 try:
-    get_front_view()
+    # get_front_view()
     get_perpendicular_window_section()
-    get_perpendicular_shelter_section()
-    get_callout()
+    # get_perpendicular_shelter_section()
+    # get_callout()
 except Exception as err:
     print('ERROR!', err)
     print(vars(err))
