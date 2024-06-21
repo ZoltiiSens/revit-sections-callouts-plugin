@@ -20,14 +20,13 @@ Plugin which creates 3 sections depending on
 uidoc = __revit__.ActiveUIDocument  # type: UIDocument
 doc = __revit__.ActiveUIDocument.Document  # type: Document
 app = __revit__.Application  # type: Application
-createdoc = doc.Create  # type: Autodesk.Revit.Creation.Document
 print('HI!')
 
 
 # ------------------------------ Functions ------------------------------
 def geographical_finding_algorythm(start_point, end_point, object_to_find_name=None, object_to_find_categoty=None,
-                                   object_to_find_builtin_categoty=None, ignore_id=None):
-    if object_to_find_name is None and object_to_find_categoty is None and object_to_find_builtin_categoty is None:
+                                   object_to_find_builtin_category=None, ignore_id=None):
+    if object_to_find_name is None and object_to_find_categoty is None and object_to_find_builtin_category is None:
         return None
 
     min_x, max_x = min(start_point.X, end_point.X), max(start_point.X, end_point.X)
@@ -41,56 +40,24 @@ def geographical_finding_algorythm(start_point, end_point, object_to_find_name=N
     allIntersections = FilteredElementCollector(doc).WherePasses(bboxFilter)
     intersections = []
     if object_to_find_categoty is not None:
-        for intersec in allIntersections:
-            if hasattr(intersec.Category, 'Name') and intersec.Category.Name == object_to_find_categoty.Name:
-                if ignore_id == intersec.Id:
+        for intersection in allIntersections:
+            if hasattr(intersection.Category, 'Name') and intersection.Category.Name == object_to_find_categoty.Name:
+                if ignore_id == intersection.Id:
                     continue
-                intersections.append(intersec)
+                intersections.append(intersection)
     elif object_to_find_name is not None:
-        for intersec in allIntersections:
-            if intersec.Name == object_to_find_name:
-                if ignore_id == intersec.Id:
+        for intersection in allIntersections:
+            if intersection.Name == object_to_find_name:
+                if ignore_id == intersection.Id:
                     continue
-                intersections.append(intersec)
-    elif object_to_find_builtin_categoty is not None:
-        allIntersections = allIntersections.OfCategory(object_to_find_builtin_categoty)
-        for intersec in allIntersections:
-            if ignore_id == intersec.Id:
+                intersections.append(intersection)
+    elif object_to_find_builtin_category is not None:
+        allIntersections = allIntersections.OfCategory(object_to_find_builtin_category)
+        for intersection in allIntersections:
+            if ignore_id == intersection.Id:
                 continue
-            intersections.append(intersec)
+            intersections.append(intersection)
     return intersections
-
-
-# Now unnecessary
-def find_upper_window(current_window):
-    window = geographical_finding_algorythm(
-        current_window.Location.Point - win_width * vector + XYZ(0, 0, win_height),
-        current_window.Location.Point + win_width * vector + XYZ(0, 0, win_height + wall_height + wallDepth),
-        object_to_find_name=current_window.Name,
-        ignore_id=current_window.Id
-    )
-    print('found windows', window)
-    if len(window):
-        return window[0]
-    else:
-        return None
-
-
-# Now unnecessary
-def calculate_distance_in_direction(element1, element2, normalized_direction_vector):
-    try:
-        location1 = element1.Location.Curve.GetEndPoint(0)
-    except:
-        location1 = element1.Location.Point
-    try:
-        location2 = element2.Location.Curve.GetEndPoint(0)
-    except:
-        location2 = element2.Location.Point
-
-    vector_between_elements = location2 - location1
-    distance = vector_between_elements.DotProduct(normalized_direction_vector)
-
-    return abs(distance)
 
 
 def get_wall_direction_vector(wall):
@@ -155,7 +122,7 @@ def find_rebars_by_quantity_and_spacing(view, start_point, end_point, quantity, 
     rebars = geographical_finding_algorythm(
         start_point,
         end_point,
-        object_to_find_builtin_categoty=BuiltInCategory.OST_Rebar)
+        object_to_find_builtin_category=BuiltInCategory.OST_Rebar)
     target_rebar = None
     if rebars is None:
         return
@@ -172,11 +139,12 @@ def find_rebars_by_quantity_and_spacing(view, start_point, end_point, quantity, 
         for i in range(target_rebar.NumberOfBarPositions):
             target_rebar.SetBarHiddenStatus(view, i, True)
         target_rebar.SetBarHiddenStatus(view, which_to_show, False)
+        return target_rebar
 
 
 def find_rebars_on_view(view):
-
-    return FilteredElementCollector(doc, view.Id).OfCategory(BuiltInCategory.OST_Rebar).WhereElementIsNotElementType().ToElements()
+    return FilteredElementCollector(doc, view.Id).OfCategory(
+        BuiltInCategory.OST_Rebar).WhereElementIsNotElementType().ToElements()
 
 
 def get_tag_types():
@@ -203,7 +171,8 @@ def get_tag_types():
     return result
 
 
-def create_rebar_tag(view, all_rebars, tag_mode, tag_orientation, tag_type_name, tag_position, partitionName, leader_end_condition=LeaderEndCondition.Attached, create_only_for_one = False):
+def create_rebar_tag(view, all_rebars, tag_mode, tag_orientation, tag_type_name, tag_position, partitionName,
+                     leader_end_condition=LeaderEndCondition.Attached, create_only_for_one=False):
     filtered_rebars = []
     for rebar in all_rebars:
         if rebar.LookupParameter("Partition").AsString() == partitionName:
@@ -232,7 +201,9 @@ def create_rebar_tag(view, all_rebars, tag_mode, tag_orientation, tag_type_name,
     return tag
 
 
-def create_rebar_tag_depending_on_rebar(view, all_rebars, tag_mode, tag_orientation, tag_type_name, tag_position, partitionName, leader_end_condition=LeaderEndCondition.Attached, create_only_for_one=False, has_leader=True):
+def create_rebar_tag_depending_on_rebar(view, all_rebars, tag_mode, tag_orientation, tag_type_name, tag_position,
+                                        partitionName, leader_end_condition=LeaderEndCondition.Attached,
+                                        create_only_for_one=False, has_leader=True):
     filtered_rebars = []
     for rebar in all_rebars:
         if rebar.LookupParameter("Partition").AsString() == partitionName:
@@ -296,13 +267,150 @@ def create_bending_detail(view, all_rebars, tag_type_name, tag_position, partiti
                 tagTypes[tag_type_name],
                 bdetailPosition,
                 0)
-            # tag.ChangeTypeId(tagTypes[tag_type_name].Id)
-            # tag.TagHeadPosition = tag_position
-            # tag.LeaderEndCondition = leader_end_condition
             if create_only_for_one:
                 break
             break
     return bdetail
+
+
+def create_text_note(view, text, position):
+    text_note_types = FilteredElementCollector(doc).OfClass(TextNoteType)
+    text_note_type = None
+    for tnt in text_note_types:
+        name = tnt.LookupParameter("Type Name").AsString()
+        if '3.5mm Ariall with border' in name:
+            text_note_type = tnt
+            break
+    text_note_options = TextNoteOptions(text_note_type.Id)
+    text_note = TextNote.Create(doc, view.Id, position, text, text_note_options)
+    return text_note
+
+
+def create_detail_component(view, location, degree=90):
+    try:
+        collector = FilteredElementCollector(doc)
+        family_symbols = collector.OfCategory(BuiltInCategory.OST_DetailComponents).OfClass(FamilySymbol)
+        break_line_type = None
+        for fs in family_symbols:
+            fs_name = fs.get_Parameter(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM).AsString()
+            if fs_name == 'Break Line':
+                break_line_type = fs
+                break
+
+        if break_line_type is None:
+            print('no type')
+            raise Exception('There is no necessary type: Break Line')
+
+        detail_component = doc.Create.NewFamilyInstance(location, break_line_type, view)
+        # print(detail_component.rotate())
+
+        # myTransform = detail_component.GetTotalTransform()
+        # myLine = Line.CreateUnbound(myTransform.Origin, myTransform.BasisZ)
+        # ElementTransformUtils.RotateElement(doc, detail_component.Id, myLine, radians)
+
+        # Set the size parameter
+        # param = detail_component.LookupParameter('Width')
+        # if param:
+        #     param.Set(20)
+        # else:
+        #     print('no width')
+
+        # rotate
+        # location = detail_component.Location
+        # location_point = location.Point
+        #
+        # axis = [(0, 0, 0), (1, 0, 0)]
+        #
+        # # Define the rotation axis as a Line
+        # # The axis parameter is expected to be a tuple or list of two XYZ points
+        # rotation_axis = Line.CreateBound(XYZ(*axis[0]), XYZ(*axis[1]))
+        #
+        # # Define the angle of rotation in radians (90 degrees)
+        # angle = 90.0 * (3.141592653589793 / 180.0)  # Convert degrees to radians
+        #
+        # # Rotate the family instance
+        # ElementTransformUtils.RotateElement(doc, detail_component.Id, rotation_axis, angle)
+
+        return detail_component
+
+    except Exception as e:
+        raise e
+
+
+# ???
+def create_dimension_by_XYZ(view, start_point, end_point, refs_array):
+    # min_point = XYZ(min(start_point.X, end_point.X), min(start_point.Y, end_point.Y), min(start_point.Z, end_point.Z))
+    # max_point = XYZ(max(start_point.X, end_point.X), max(start_point.Y, end_point.Y), max(start_point.Z, end_point.Z))
+    line = Line.CreateBound(start_point, end_point)
+
+    dimension = doc.Create.NewDimension(view, line, refs_array)
+    return dimension
+
+
+# ???
+def get_rebar_reference(rebar):
+    """
+    Gets the reference of the rebar element.
+
+    :param rebar: The rebar element.
+    :return: The reference of the rebar element.
+    """
+    # Get the geometry of the rebar
+    opt = Options()
+    geometry = rebar.get_Geometry(opt)
+
+    # Iterate over geometry objects to find the reference
+    for geomObj in geometry:
+        if isinstance(geomObj, GeometryInstance):
+            instance = geomObj
+            instanceSymbolGeometry = instance.GetSymbolGeometry()
+            for instGeomObj in instanceSymbolGeometry:
+                if isinstance(instGeomObj, Curve):
+                    # Return the reference of the first curve found
+                    return instGeomObj.Reference
+
+    return None
+
+
+# ???
+def get_geometric_references(element):
+    references = []
+    # For example, get all faces of an element
+    options = Options()
+    geom_element = element.get_Geometry(options)
+    for geom_obj in geom_element:
+        if isinstance(geom_obj, Solid):
+            for face in geom_obj.Faces:
+                references.append(Reference(face))
+    return references
+
+
+def create_spot_elevation(view, element, point, ):
+    reference = Reference(element)
+    offset_point = point + XYZ(perpendicular_vector.X * -5, perpendicular_vector.Y * -5, 0)
+
+    # TODO: get getting type out of function
+    family_symbols = FilteredElementCollector(doc).OfClass(SpotDimensionType)
+    spot_dimension_type = None
+    for fs in family_symbols:
+        fs_name = fs.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME).AsString()
+        try:
+            if fs_name == 'Arrow (Project)':
+                spot_dimension_type = fs
+                break
+        except:
+            print('no name')
+
+    spot_dimension = doc.Create.NewSpotElevation(
+        view,
+        reference,
+        point,
+        offset_point,
+        offset_point,
+        offset_point,
+        True
+    )
+    spot_dimension.SpotDimensionType = spot_dimension_type
 
 
 # ------------------------------ MAIN ------------------------------
@@ -322,6 +430,7 @@ win_height = windowFamilyObject.Symbol.get_Parameter(BuiltInParameter.GENERIC_HE
 win_width = windowFamilyObject.Symbol.get_Parameter(BuiltInParameter.DOOR_WIDTH).AsDouble()
 win_depth = UnitUtils.ConvertToInternalUnits(40, UnitTypeId.Centimeters)
 vector = get_wall_direction_vector(host_object)
+perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
 wall_bbox = host_object.get_BoundingBox(None)
 wall_height = wall_bbox.Max.Z - wall_bbox.Min.Z
 wallDepth = UnitUtils.ConvertToInternalUnits(host_object.Width, UnitTypeId.Feet)
@@ -384,7 +493,7 @@ def get_front_view():
         if len(walls):
             right_distance = walls[0].Location.Curve.Distance(window_origin)
             right_offset = UnitUtils.ConvertToInternalUnits((right_distance - win_width - 10 / 30.48) * 30.48,
-                                                           UnitTypeId.Centimeters)
+                                                            UnitTypeId.Centimeters)
 
     transform = Transform.Identity
     transform.Origin = window_origin
@@ -417,10 +526,12 @@ def get_front_view():
         window_bbox.Max.Y + left_offset * get_wall_direction_vector(host_object).Y,
         window_bbox.Max.Z
     )
-    find_rebars_by_quantity_and_spacing(win_elevation, window_bbox.Min, window_bbox.Max, 5, 20, 3)
-    find_rebars_by_quantity_and_spacing(win_elevation, window_bbox.Min, window_bbox.Max, 8, 10, 2)
-    find_rebars_by_quantity_and_spacing(win_elevation, left_rebar_start_point, left_rebar_end_point, 5, 20, 3)
-    find_rebars_by_quantity_and_spacing(win_elevation, left_rebar_start_point, left_rebar_end_point, 8, 10, 2)
+    left_reb_5 = find_rebars_by_quantity_and_spacing(win_elevation, window_bbox.Min, window_bbox.Max, 5, 20, 3)
+    left_reb_8 = find_rebars_by_quantity_and_spacing(win_elevation, window_bbox.Min, window_bbox.Max, 8, 10, 2)
+    right_reb_5 = find_rebars_by_quantity_and_spacing(win_elevation, left_rebar_start_point, left_rebar_end_point, 5,
+                                                      20, 3)
+    right_reb_8 = find_rebars_by_quantity_and_spacing(win_elevation, left_rebar_start_point, left_rebar_end_point, 8,
+                                                      10, 2)
 
     all_rebars = find_rebars_on_view(win_elevation)
     rebar_ids_to_hide = List[ElementId]()
@@ -442,12 +553,8 @@ def get_front_view():
             window_origin.Y + perpendicular_vector.Y * wallDepth / 2 + vector.Y * (win_width + 50 / 30.48),
             window_origin.Z + win_height * 2
         ),
-        object_to_find_builtin_categoty=BuiltInCategory.OST_Rebar
+        object_to_find_builtin_category=BuiltInCategory.OST_Rebar
     )
-
-
-
-
 
     create_rebar_tag(
         win_elevation,
@@ -507,6 +614,119 @@ def get_front_view():
         window_origin + XYZ(-(win_width / 2 + 1.5) * vector.X, -(win_width / 2 + 1.5) * vector.Y, win_height / 2),
         'Window_Detail_6')
 
+    # def create_break_line(position, size, orientation):
+    #     print('--1')
+    #     x = position.X
+    #     y = position.Y
+    #     z = position.Z
+    #     half_size = size / 2.0
+    #     angle_rad = orientation * (3.141592653589793 / 180.0)  # Convert degrees to radians
+    #     print('--2')
+    #     # Calculate start and end points based on orientation
+    #     start_point = XYZ(x - half_size * math.cos(angle_rad), y - half_size * math.sin(angle_rad), z)
+    #     end_point = XYZ(x + half_size * math.cos(angle_rad), y + half_size * math.sin(angle_rad), z)
+    #     print('--3')
+    #     # Create a new line in the detail lines
+    #     line = Line.CreateBound(start_point, end_point)
+    #     print('--4')
+    #
+    #     line = Line.CreateBound(window_origin, window_origin + XYZ(0, 0, 1))
+    #     # Start a new transaction
+    #     detail_line = doc.Create.NewDetailCurve(win_elevation, line)
+    #     break_line_type = None
+    #     for fs in family_symbols:
+    #         fs_name = fs.get_Parameter(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM).AsString()
+    #         try:
+    #             if fs_name == name:
+    #                 break_line_type = fs
+    #                 break
+    #         except:
+    #             print('no name')
+    #     if break_line_type is None:
+    #         print('no type')
+    #
+    #     return detail_line
+    #
+    # create_break_line(window_origin, 1, 180)
+
+    create_detail_component(win_elevation,
+                            XYZ(window_origin.X, window_origin.Y, window_origin.Z + win_height / 2) + XYZ(
+                                (left_offset + win_width) * vector.X, (left_offset + win_width) * vector.Y, 0))
+    create_detail_component(win_elevation,
+                            XYZ(window_origin.X, window_origin.Y, window_origin.Z + win_height / 2) + XYZ(
+                                (right_offset + win_width) * -vector.X, (right_offset + win_width) * -vector.Y, 0))
+
+    # options = Options()
+    # geometry_element = left_reb_5.get_Geometry(options)
+    # print(geometry_element)
+    # print('---')
+    # for geom_obj in geometry_element:
+    #     print(geom_obj)
+    #     r_arr = [].append(geom_obj)
+    #
+    # print('---')
+    #
+    # r_arr = ReferenceArray()
+    # r_arr.Append(Reference(left_reb_5))
+
+    # print('---')
+    # print(left_reb_5)
+    #
+    # options = Options()
+    # #
+    # for subel in left_reb_5.GetSubelements():
+    #     print('-', subel.GetGeometryObject(win_elevation))
+    #     # for geom in subel.GetGeometryObject(win_elevation):
+    #     #     print('-', geom)
+    #
+    # # print(get_rebar_geometric_references(left_reb_5))
+    # print(Reference(left_reb_5.GetFullGeometryForView(win_elevation)))
+    # print('---')
+
+    # ------------------------------------------------------------------------
+    # options = Options()
+    # options.View = win_elevation
+    # options.ComputeReferences = True
+    # options.IncludeNonVisibleObjects = True
+    # r_arr = ReferenceArray()
+    #
+    # wholeRebarGeometry = left_reb_5.get_Geometry(options)
+    # for rebar_geom in wholeRebarGeometry:
+    #     if isinstance(rebar_geom, Solid):
+    #         print('faces')
+    #         for face in rebar_geom.Faces:
+    #             # Do something with the face
+    #             reference = face.Reference
+    #             r_arr.Append(reference)
+    #             print(reference)
+    #         print('edges')
+    #         for edge in rebar_geom.Edges:
+    #             # Do something with the edge
+    #             reference = edge.Reference
+    #             print(reference)
+    #
+    # wholeRebarGeometry = left_reb_8.get_Geometry(options)
+    # for rebar_geom in wholeRebarGeometry:
+    #     if isinstance(rebar_geom, Solid):
+    #         print('faces')
+    #         for face in rebar_geom.Faces:
+    #             # Do something with the face
+    #             reference = face.Reference
+    #             r_arr.Append(reference)
+    #             print(reference)
+    #         print('edges')
+    #         for edge in rebar_geom.Edges:
+    #             # Do something with the edge
+    #             reference = edge.Reference
+    #             print(reference)
+    #
+    # create_dimension_by_XYZ(
+    #     win_elevation,
+    #     XYZ(window_origin.X, window_origin.Y - 5, window_origin.Z),
+    #     XYZ(window_origin.X, window_origin.Y + 5, window_origin.Z),
+    #     r_arr)
+    # ------------------------------------------------------------------------
+
     win_elevation.Scale = 25
     new_name = 'MAMAD_Window_Front_View'
     for i in range(10):
@@ -533,7 +753,8 @@ def get_callout():
     if len(windows):
         best_distance = float('inf')
         for window in windows:
-            distance = abs(math.sqrt((window_origin.Y - window.Location.Point.Y) ** 2 + (window_origin.X - window.Location.Point.X) ** 2))
+            distance = abs(math.sqrt(
+                (window_origin.Y - window.Location.Point.Y) ** 2 + (window_origin.X - window.Location.Point.X) ** 2))
             if distance < best_distance:
                 best_distance = distance
                 left_point = window.Location.Point + XYZ(
@@ -571,9 +792,9 @@ def get_callout():
             if distance < best_distance:
                 best_distance = distance
                 right_point = window.Location.Point - XYZ(
-                        win_width / 2 * get_wall_direction_vector(host_object).X,
-                        win_width / 2 * get_wall_direction_vector(host_object).Y,
-                        0)
+                    win_width / 2 * get_wall_direction_vector(host_object).X,
+                    win_width / 2 * get_wall_direction_vector(host_object).Y,
+                    0)
                 print("right point window", right_point)
     else:
         walls = geographical_finding_algorythm(
@@ -626,7 +847,7 @@ def get_callout():
     # Modifying viewRange
     sill_height_param = windowFamilyObject.LookupParameter("Sill Height")
     if sill_height_param:
-         sill_height_param = sill_height_param.AsDouble()  # Sill height is typically stored in feet
+        sill_height_param = sill_height_param.AsDouble()  # Sill height is typically stored in feet
     else:
         raise Exception("Sill Height parameter not found in the window family instance.")
 
@@ -660,7 +881,7 @@ def get_callout():
             window_origin.Y - perpendicular_vector.Y * wallDepth / 2 - vector.Y * 280 / 30.48,
             window_origin.Z + 20 / 30.48
         ),
-        object_to_find_builtin_categoty=BuiltInCategory.OST_Rebar
+        object_to_find_builtin_category=BuiltInCategory.OST_Rebar
     ))
     rebars_sets.append(geographical_finding_algorythm(
         XYZ(
@@ -673,7 +894,7 @@ def get_callout():
             window_origin.Y - perpendicular_vector.Y * wallDepth / 2 + vector.Y * 280 / 30.48,
             window_origin.Z + 20 / 30.48
         ),
-        object_to_find_builtin_categoty=BuiltInCategory.OST_Rebar
+        object_to_find_builtin_category=BuiltInCategory.OST_Rebar
     ))
     perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
     for all_rebars in rebars_sets:
@@ -843,15 +1064,25 @@ def get_callout():
             create_only_for_one=True,
             has_leader=False)
 
+    create_text_note(callout, b'\xd7\x97\xd7\x95\xd7\xa5'.decode('UTF-8'), window_origin + XYZ(
+        2.3 * windowFamilyObject.FacingOrientation.X + win_height / 2 * vector.X,
+        2.3 * windowFamilyObject.FacingOrientation.Y + win_height / 2 * vector.Y,
+        0))
+    create_text_note(callout, b'\xd7\xa4\xd7\xa0\xd7\x99\xd7\x9d'.decode('UTF-8'), window_origin + XYZ(
+        -4 * windowFamilyObject.FacingOrientation.X + win_height / 2 * vector.X,
+        -4 * windowFamilyObject.FacingOrientation.Y + win_height / 2 * vector.Y,
+        0))
 
-
-
-
-
-
-
-
-
+    create_detail_component(callout, XYZ(
+        left_point.X + -vector.X * 10 / 30.48,
+        left_point.Y + -vector.Y * 10 / 30.48,
+        window_origin.Z
+    ))
+    create_detail_component(callout, XYZ(
+        right_point.X + vector.X * 10 / 30.48,
+        right_point.Y + vector.Y * 10 / 30.48,
+        window_origin.Z
+    ))
 
     new_name = 'MAMAD_Window_Detail'
     for i in range(10):
@@ -913,21 +1144,18 @@ def get_perpendicular_window_section():
     win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
     win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
     win_elevation.Scale = 25
-    # new_name = 'py_{}'.format(windowFamilyObject.Symbol.Family.Name)
-    # all_rebars = find_rebars_on_view(win_elevation)
 
     rebars_sets = []
     rebars_sets.append(geographical_finding_algorythm(
         XYZ(window_bbox.Max.X, window_bbox.Max.Y, window_origin.Z),
         XYZ(window_bbox.Min.X, window_bbox.Min.Y, window_origin.Z + 10),
-        object_to_find_builtin_categoty=BuiltInCategory.OST_Rebar
+        object_to_find_builtin_category=BuiltInCategory.OST_Rebar
     ))
     rebars_sets.append(geographical_finding_algorythm(
         XYZ(window_bbox.Max.X, window_bbox.Max.Y, window_origin.Z),
         XYZ(window_bbox.Min.X, window_bbox.Min.Y, window_origin.Z - 5.6),
-        object_to_find_builtin_categoty=BuiltInCategory.OST_Rebar
+        object_to_find_builtin_category=BuiltInCategory.OST_Rebar
     ))
-    perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
     for all_rebars in rebars_sets:
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1177,9 +1405,106 @@ def get_perpendicular_window_section():
             create_only_for_one=True,
             has_leader=False)
 
+    create_text_note(win_elevation, b'\xd7\x97\xd7\x95\xd7\xa5'.decode('UTF-8'), window_origin + XYZ(
+        3 * windowFamilyObject.FacingOrientation.X,
+        3 * windowFamilyObject.FacingOrientation.Y,
+        win_height / 2))
+    create_text_note(win_elevation, b'\xd7\xa4\xd7\xa0\xd7\x99\xd7\x9d'.decode('UTF-8'), window_origin + XYZ(
+        -3 * windowFamilyObject.FacingOrientation.X,
+        -3 * windowFamilyObject.FacingOrientation.Y,
+        win_height / 2))
 
+    categories = doc.Settings.Categories
+    floor_category = None
+    for c in categories:
+        if c.Name == 'Floors':
+            floor_category = c
+    if floor_category is None:
+        raise Exception('There is no floor\'s category named "Floors"')
 
+    floors = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, top_offset + win_height),
+                                            object_to_find_categoty=floor_category)
+    top_floor = floors[0]
+    top_win = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, top_offset + win_height),
+                                             object_to_find_name=windowFamilyObject.Name)
+    floors = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, -bottom_offset),
+                                            object_to_find_categoty=floor_category)
+    bottom_floor = floors[0]
+    if len(top_win):
+        create_spot_elevation(win_elevation, host_object, XYZ(window_origin.X, window_origin.Y,
+                                                              top_win[0].get_BoundingBox(None).Min.Z + 1.5 / 30.48))
+    create_spot_elevation(win_elevation, host_object, window_origin)
+    create_spot_elevation(win_elevation, host_object, window_origin + XYZ(0, 0, win_height))
+    create_spot_elevation(win_elevation, host_object,
+                          XYZ(window_origin.X, window_origin.Y, top_floor.get_BoundingBox(None).Max.Z))
+    create_spot_elevation(win_elevation, host_object,
+                          XYZ(window_origin.X, window_origin.Y, bottom_floor.get_BoundingBox(None).Max.Z))
 
+    # create_detail_component(win_elevation, XYZ(
+    #     window_origin.X + interior_offset * perpendicular_vector.X,
+    #     window_origin.Y + interior_offset * perpendicular_vector.Y,
+    #     (top_floor.get_BoundingBox(None).Max.Z - top_floor.get_BoundingBox(None).Min.Z) / 2
+    # ))
+    create_detail_component(win_elevation, XYZ(
+        window_origin.X + (interior_offset + wallDepth / 2) * -perpendicular_vector.X,
+        window_origin.Y + (interior_offset + wallDepth / 2) * -perpendicular_vector.Y,
+        top_floor.get_BoundingBox(None).Max.Z - (
+                    top_floor.get_BoundingBox(None).Max.Z - top_floor.get_BoundingBox(None).Min.Z) / 4 * 3
+    ))
+    create_detail_component(win_elevation, XYZ(
+        window_origin.X + (interior_offset + wallDepth / 2) * -perpendicular_vector.X,
+        window_origin.Y + (interior_offset + wallDepth / 2) * -perpendicular_vector.Y,
+        bottom_floor.get_BoundingBox(None).Max.Z - (
+                top_floor.get_BoundingBox(None).Max.Z - top_floor.get_BoundingBox(None).Min.Z) / 2
+    ))
+    top_wall = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, top_offset + win_height),
+                                              object_to_find_categoty=host_object.Category, ignore_id=host_object.Id)
+    print(top_wall)
+    if len(top_wall) and not len(top_win):
+        create_detail_component(win_elevation, XYZ(
+            window_origin.X,
+            window_origin.Y,
+            window_origin.Z + win_height + top_offset - 30 / 30.48
+        ))
+
+    bottom_wall = geographical_finding_algorythm(window_origin, window_origin - XYZ(0, 0, bottom_offset),
+                                                 object_to_find_categoty=host_object.Category, ignore_id=host_object.Id)
+    print(bottom_wall)
+    if len(bottom_wall):
+        create_detail_component(win_elevation, XYZ(
+            window_origin.X,
+            window_origin.Y,
+            window_origin.Z - bottom_offset
+        ))
+
+    # # BASE FOR DIMENSIONS
+    # options = Options()
+    # options.View = win_elevation
+    # options.ComputeReferences = True
+    # options.IncludeNonVisibleObjects = True
+    # r_arr = ReferenceArray()
+    #
+    # wholeRebarGeometry = windowFamilyObject.get_Geometry(options)
+    # for rebar_geom in wholeRebarGeometry:
+    #     print('feom', rebar_geom)
+    #     if isinstance(rebar_geom, Solid):
+    #         print('faces')
+    #         for face in rebar_geom.Faces:
+    #             # Do something with the face
+    #             reference = face.Reference
+    #             # r_arr.Append(reference)
+    #             print(reference)
+    #         print('edges')
+    #         for edge in rebar_geom.Edges:
+    #             # Do something with the edge
+    #             reference = edge.Reference
+    #             # r_arr.Append(reference)
+    #             print(reference)
+    # create_dimension_by_XYZ(
+    #     win_elevation,
+    #     XYZ(window_origin.X, window_origin.Y, window_origin.Z - 5),
+    #     XYZ(window_origin.X, window_origin.Y, window_origin.Z + 5),
+    #     r_arr)
 
     new_name = 'MAMAD_Window_Section_1'
     for i in range(10):
@@ -1235,21 +1560,16 @@ def get_perpendicular_shelter_section():
     new_name = 'MAMAD_Window_Section_2'
     win_elevation.Scale = 25
 
-
-    # all_rebars = find_rebars_on_view(win_elevation)
-
-
-
     rebars_sets = []
     rebars_sets.append(geographical_finding_algorythm(
         XYZ(window_bbox.Max.X, window_bbox.Max.Y, window_origin.Z),
         XYZ(window_bbox.Min.X, window_bbox.Min.Y, window_origin.Z + 10),
-        object_to_find_builtin_categoty=BuiltInCategory.OST_Rebar
+        object_to_find_builtin_category=BuiltInCategory.OST_Rebar
     ))
     rebars_sets.append(geographical_finding_algorythm(
         XYZ(window_bbox.Max.X, window_bbox.Max.Y, window_origin.Z),
         XYZ(window_bbox.Min.X, window_bbox.Min.Y, window_origin.Z - 5.6),
-        object_to_find_builtin_categoty=BuiltInCategory.OST_Rebar
+        object_to_find_builtin_category=BuiltInCategory.OST_Rebar
     ))
     perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
     for i, all_rebars in enumerate(rebars_sets):
@@ -1272,7 +1592,7 @@ def get_perpendicular_shelter_section():
             XYZ(-2.4 * perpendicular_vector.X, -2.4 * perpendicular_vector.Y, 1),
             'Window_Front_Detail_6',
             leader_end_condition=LeaderEndCondition.Free,
-            create_only_for_one= True)
+            create_only_for_one=True)
 
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1306,7 +1626,6 @@ def get_perpendicular_shelter_section():
             leader_end_condition=LeaderEndCondition.Free,
             create_only_for_one=True)
 
-
         create_rebar_tag_depending_on_rebar(
             win_elevation,
             all_rebars,
@@ -1339,16 +1658,6 @@ def get_perpendicular_shelter_section():
             'Window_Front_Detail_1',
             leader_end_condition=LeaderEndCondition.Free,
             create_only_for_one=True)
-
-        # create_rebar_tag_depending_on_rebar(
-        #     win_elevation,
-        #     all_rebars,
-        #     TagMode.TM_ADDBY_CATEGORY,
-        #     TagOrientation.Horizontal,
-        #     'Horizontal_Bars',
-        #     XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, 0.8),
-        #     'Window_Detail_14',
-        #     leader_end_condition=LeaderEndCondition.Free)
 
         create_bending_detail(
             win_elevation,
@@ -1458,6 +1767,74 @@ def get_perpendicular_shelter_section():
                 'Window_Detail_5',
                 create_only_for_one=True,
                 has_leader=False)
+
+    create_text_note(win_elevation, b'\xd7\x97\xd7\x95\xd7\xa5'.decode('UTF-8'), window_origin + XYZ(
+        4 * windowFamilyObject.FacingOrientation.X,
+        4 * windowFamilyObject.FacingOrientation.Y,
+        win_height / 2))
+    create_text_note(win_elevation, b'\xd7\xa4\xd7\xa0\xd7\x99\xd7\x9d'.decode('UTF-8'), window_origin + XYZ(
+        -4 * windowFamilyObject.FacingOrientation.X,
+        -4 * windowFamilyObject.FacingOrientation.Y,
+        win_height / 2))
+
+    categories = doc.Settings.Categories
+    floor_category = None
+    for c in categories:
+        if c.Name == 'Floors':
+            floor_category = c
+    if floor_category is None:
+        raise Exception('There is no floor\'s category named "Floors"')
+
+    floors = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, top_offset + win_height),
+                                            object_to_find_categoty=floor_category)
+    top_floor = floors[0]
+    # top_win = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, top_offset + win_height),
+    #                                          object_to_find_name=windowFamilyObject.Name, ignore_id=windowFamilyObject.Id)
+    floors = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, -bottom_offset),
+                                            object_to_find_categoty=floor_category)
+    bottom_floor = floors[0]
+    # if len(top_win):
+    #     top_win = top_win[0]
+    #     create_spot_elevation(win_elevation, host_object,
+    #                           XYZ(window_origin.X, window_origin.Y, top_win.get_BoundingBox(None).Min.Z + 1.5 / 30.48))
+    # create_spot_elevation(win_elevation, host_object, window_origin)
+    create_spot_elevation(win_elevation, host_object, window_origin + XYZ(0, 0, win_height))
+    create_spot_elevation(win_elevation, host_object,
+                          XYZ(window_origin.X, window_origin.Y, top_floor.get_BoundingBox(None).Max.Z))
+    create_spot_elevation(win_elevation, host_object,
+                          XYZ(window_origin.X, window_origin.Y, bottom_floor.get_BoundingBox(None).Max.Z))
+
+    create_detail_component(win_elevation, XYZ(
+        window_origin.X + (interior_offset + wallDepth / 2) * -perpendicular_vector.X,
+        window_origin.Y + (interior_offset + wallDepth / 2) * -perpendicular_vector.Y,
+        top_floor.get_BoundingBox(None).Max.Z - (
+                top_floor.get_BoundingBox(None).Max.Z - top_floor.get_BoundingBox(None).Min.Z) / 4 * 3
+    ))
+    create_detail_component(win_elevation, XYZ(
+        window_origin.X + (interior_offset + wallDepth / 2) * -perpendicular_vector.X,
+        window_origin.Y + (interior_offset + wallDepth / 2) * -perpendicular_vector.Y,
+        bottom_floor.get_BoundingBox(None).Max.Z - (
+                top_floor.get_BoundingBox(None).Max.Z - top_floor.get_BoundingBox(None).Min.Z) / 2
+    ))
+    top_wall = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, top_offset + win_height),
+                                              object_to_find_categoty=host_object.Category, ignore_id=host_object.Id)
+    print(top_wall)
+    if len(top_wall):
+        create_detail_component(win_elevation, XYZ(
+            window_origin.X,
+            window_origin.Y,
+            window_origin.Z + win_height + top_offset - 10 / 30.48
+        ))
+
+    bottom_wall = geographical_finding_algorythm(window_origin, window_origin - XYZ(0, 0, bottom_offset),
+                                                 object_to_find_categoty=host_object.Category, ignore_id=host_object.Id)
+    print(bottom_wall)
+    if len(bottom_wall):
+        create_detail_component(win_elevation, XYZ(
+            window_origin.X,
+            window_origin.Y,
+            window_origin.Z - bottom_offset
+        ))
 
     for i in range(10):
         try:
