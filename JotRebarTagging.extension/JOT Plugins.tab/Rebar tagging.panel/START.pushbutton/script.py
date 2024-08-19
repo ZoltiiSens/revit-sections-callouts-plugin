@@ -10,9 +10,9 @@ from Autodesk.Revit.DB.Structure import *
 from System.Collections.Generic import List
 
 # ------------------------------ VARIABLES ------------------------------
-__title__ = "Sections automation"
+__title__ = "Start tagging"
 __doc__ = """
-Plugin which creates 3 sections depending on 
+Creates 3 sections and one callout and tags rebars on it 
 """
 uidoc = __revit__.ActiveUIDocument  # type: UIDocument
 doc = __revit__.ActiveUIDocument.Document  # type: Document
