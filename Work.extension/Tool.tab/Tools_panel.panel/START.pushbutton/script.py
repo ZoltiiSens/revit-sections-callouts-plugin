@@ -9,9 +9,6 @@ from Autodesk.Revit.DB import *
 from Autodesk.Revit.DB.Structure import *
 from System.Collections.Generic import List
 
-# from pyrevit import forms
-
-
 # ------------------------------ VARIABLES ------------------------------
 __title__ = "Sections automation"
 __doc__ = """
@@ -21,6 +18,42 @@ uidoc = __revit__.ActiveUIDocument  # type: UIDocument
 doc = __revit__.ActiveUIDocument.Document  # type: Document
 app = __revit__.Application  # type: Application
 print('HI!')
+
+
+# ------------------------------ VERIFYING ------------------------------
+# import requests
+# from subprocess import check_output
+# from tempfile import gettempdir
+# import os
+#
+#
+# def check_jot_state(plugin_id):
+#     try:
+#         serials = check_output('wmic diskdrive get Name, SerialNumber').decode().split('\n')[1:]
+#         drive_serial = None
+#         for serial in serials:
+#             if 'DRIVE0' in serial:
+#                 drive_serial = serial.split('DRIVE0')[-1].strip()
+#         with open(os.path.sep.join(gettempdir().split(os.path.sep)[:-1]) + os.path.sep + 'jot.tmp', 'r') as file:
+#             jot_token = file.read()
+#         params = {
+#             'plugin_id': plugin_id,
+#             'machine_ids': drive_serial + '---' + 'smth',
+#             'jot_token': jot_token
+#         }
+#         resp = requests.get('http://localhost:7878/auth-plugin', params=params)
+#         if resp.content == 'true':
+#             print('Accessed')
+#         else:
+#             print('You have no access to this plugin. Details:')
+#             print(resp.content)
+#             sys.exit()
+#     except Exception as err:
+#         print(err)
+#         sys.exit()
+#
+#
+# check_jot_state(5)
 
 
 # ------------------------------ Functions ------------------------------
@@ -36,24 +69,24 @@ def geographical_finding_algorythm(start_point, end_point, object_to_find_name=N
     max_z = max(start_point.Z, end_point.Z)
     outline = Outline(XYZ(min_x, min_y, min_z), XYZ(max_x, max_y, max_z))
 
-    bboxFilter = BoundingBoxIntersectsFilter(outline)
-    allIntersections = FilteredElementCollector(doc).WherePasses(bboxFilter)
+    bbox_filter = BoundingBoxIntersectsFilter(outline)
+    all_intersections = FilteredElementCollector(doc).WherePasses(bbox_filter)
     intersections = []
     if object_to_find_categoty is not None:
-        for intersection in allIntersections:
+        for intersection in all_intersections:
             if hasattr(intersection.Category, 'Name') and intersection.Category.Name == object_to_find_categoty.Name:
                 if ignore_id == intersection.Id:
                     continue
                 intersections.append(intersection)
     elif object_to_find_name is not None:
-        for intersection in allIntersections:
+        for intersection in all_intersections:
             if intersection.Name == object_to_find_name:
                 if ignore_id == intersection.Id:
                     continue
                 intersections.append(intersection)
     elif object_to_find_builtin_category is not None:
-        allIntersections = allIntersections.OfCategory(object_to_find_builtin_category)
-        for intersection in allIntersections:
+        all_intersections = all_intersections.OfCategory(object_to_find_builtin_category)
+        for intersection in all_intersections:
             if ignore_id == intersection.Id:
                 continue
             intersections.append(intersection)
@@ -286,7 +319,7 @@ def create_text_note(view, text, position):
     return text_note
 
 
-def create_detail_component(view, location, degree=90):
+def create_detail_component(view, location):
     try:
         collector = FilteredElementCollector(doc)
         family_symbols = collector.OfCategory(BuiltInCategory.OST_DetailComponents).OfClass(FamilySymbol)
