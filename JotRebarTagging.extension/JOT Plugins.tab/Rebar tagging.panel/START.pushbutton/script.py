@@ -204,6 +204,31 @@ def get_tag_types():
     return result
 
 
+def get_shapes_ids():
+    rebars = FilteredElementCollector(doc).OfClass(RebarShape)
+    U_5_shape = None
+    Link_4 = None
+    for rebar in rebars:
+        for param in rebar.Parameters:
+            # print(param.AsString())
+            if param.AsString() == '5_U-Shape':
+                print('FOUND')
+                U_5_shape = rebar
+                break
+            if param.AsString() == '4_Link':
+                print('FOUND')
+                Link_4 = rebar
+                break
+        if U_5_shape is not None and Link_4 is not None:
+            break
+    print('--------------------------------------------------------------==')
+    print(U_5_shape)
+    return {
+        '5_U-Shape': U_5_shape,
+        '4_Link': Link_4
+    }
+
+
 def create_rebar_tag(view, all_rebars, tag_mode, tag_orientation, tag_type_name, tag_position, partitionName,
                      leader_end_condition=LeaderEndCondition.Attached, create_only_for_one=False):
     filtered_rebars = []
@@ -273,6 +298,198 @@ def create_rebar_tag_depending_on_rebar(view, all_rebars, tag_mode, tag_orientat
             lll.Add(subelement.GetReference())
             tag.AddReferences(lll)
     return tag
+
+
+def check_type_of_ulink_hor_rebar(view, all_rebars, rebarShapes):
+    filtered_rebars = []
+    filtered_rebars_hor_in = []
+    for rebar in all_rebars:
+        if rebar.LookupParameter("Partition").AsString() == 'U/Link_Hor':
+            filtered_rebars.append(rebar)
+    for rebar in all_rebars:
+        if rebar.LookupParameter("Partition").AsString() == 'Hor_In':
+            filtered_rebars_hor_in.append(rebar)
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    print(filtered_rebars, filtered_rebars_hor_in)
+    print(len(filtered_rebars) == 1, filtered_rebars[0].GetShapeId() == rebarShapes['5_U-Shape'].Id, len(filtered_rebars_hor_in) > 0)
+    if len(filtered_rebars) == 1 and filtered_rebars[0].GetShapeId() == rebarShapes['5_U-Shape'].Id and len(filtered_rebars_hor_in) > 0:
+        # 3
+        create_bending_detail(
+            view,
+            filtered_rebars,
+            'Bending Detail 2 (No hooks)',
+            XYZ(0 * vector.X + -1.9 * perpendicular_vector.X, 0 * vector.Y + -1.9 * perpendicular_vector.Y, 0),
+            'U/Link_Hor'
+        )
+
+        create_rebar_tag_depending_on_rebar(
+            view,
+            filtered_rebars,
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Vertical,
+            'Link&U-Shape+Length',
+            XYZ(0 * vector.X + -1.15 * perpendicular_vector.X, 0 * vector.Y + -15 * perpendicular_vector.Y, 0),
+            'U/Link_Hor',
+            create_only_for_one=True,
+            has_leader=False)
+
+        create_bending_detail(
+            view,
+            all_rebars,
+            'Bending Detail 2 (No hooks)',
+            XYZ(0 * vector.X + -1.75 * perpendicular_vector.X, 0 * vector.Y + -1.75 * perpendicular_vector.Y, 0),
+            'Hor_In'
+        )
+
+        create_rebar_tag_depending_on_rebar(
+            view,
+            all_rebars,
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Vertical,
+            'Link&U-Shape+Length',
+            XYZ(0 * vector.X + -1.55 * perpendicular_vector.X, 0 * vector.Y + -1.55 * perpendicular_vector.Y, 0),
+            'Hor_In',
+            create_only_for_one=True,
+            has_leader=False)
+
+        create_bending_detail(
+            view,
+            all_rebars,
+            'Bending Detail 2 (No hooks)',
+            XYZ(0 * vector.X + -2.05 * perpendicular_vector.X, 0 * vector.Y + -2.05 * perpendicular_vector.Y, 0),
+            'Hor_Out'
+        )
+
+        create_rebar_tag_depending_on_rebar(
+            view,
+            all_rebars,
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Vertical,
+            'Link&U-Shape+Length',
+            XYZ(0 * vector.X + -2.25 * perpendicular_vector.X, 0 * vector.Y + -2.25 * perpendicular_vector.Y, 0),
+            'Hor_Out',
+            create_only_for_one=True,
+            has_leader=False)
+    elif len(filtered_rebars) == 2 and filtered_rebars[0].GetShapeId() == rebarShapes['5_U-Shape'].Id and len(filtered_rebars_hor_in) > 0:
+        # 3
+        create_bending_detail(
+            view,
+            filtered_rebars[:0],
+            'Bending Detail 2 (No hooks)',
+            XYZ(0 * vector.X + -1.9 * perpendicular_vector.X, 0 * vector.Y + -1.9 * perpendicular_vector.Y, 0),
+            'U/Link_Hor'
+        )
+
+        create_rebar_tag_depending_on_rebar(
+            view,
+            filtered_rebars[:0],
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Vertical,
+            'Link&U-Shape+Length',
+            XYZ(0 * vector.X + -1.15 * perpendicular_vector.X, 0 * vector.Y + -15 * perpendicular_vector.Y, 0),
+            'U/Link_Hor',
+            create_only_for_one=True,
+            has_leader=False)
+
+        create_bending_detail(
+            view,
+            filtered_rebars[1:],
+            'Bending Detail 2 (No hooks)',
+            XYZ(0 * vector.X + -1.9 * perpendicular_vector.X, 0 * vector.Y + -1.9 * perpendicular_vector.Y, 0),
+            'U/Link_Hor'
+        )
+
+        create_rebar_tag_depending_on_rebar(
+            view,
+            filtered_rebars[1:],
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Vertical,
+            'Link&U-Shape+Length',
+            XYZ(0 * vector.X + -1.15 * perpendicular_vector.X, 0 * vector.Y + -15 * perpendicular_vector.Y, 0),
+            'U/Link_Hor',
+            create_only_for_one=True,
+            has_leader=False)
+
+        create_bending_detail(
+            view,
+            all_rebars,
+            'Bending Detail 2 (No hooks)',
+            XYZ(0 * vector.X + -1.75 * perpendicular_vector.X, 0 * vector.Y + -1.75 * perpendicular_vector.Y, 0),
+            'Hor_In'
+        )
+
+        create_rebar_tag_depending_on_rebar(
+            view,
+            all_rebars,
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Vertical,
+            'Link&U-Shape+Length',
+            XYZ(0 * vector.X + -1.55 * perpendicular_vector.X, 0 * vector.Y + -1.55 * perpendicular_vector.Y, 0),
+            'Hor_In',
+            create_only_for_one=True,
+            has_leader=False)
+
+        create_bending_detail(
+            view,
+            all_rebars,
+            'Bending Detail 2 (No hooks)',
+            XYZ(0 * vector.X + -2.05 * perpendicular_vector.X, 0 * vector.Y + -2.05 * perpendicular_vector.Y, 0),
+            'Hor_Out'
+        )
+
+        create_rebar_tag_depending_on_rebar(
+            view,
+            all_rebars,
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Vertical,
+            'Link&U-Shape+Length',
+            XYZ(0 * vector.X + -2.25 * perpendicular_vector.X, 0 * vector.Y + -2.25 * perpendicular_vector.Y, 0),
+            'Hor_Out',
+            create_only_for_one=True,
+            has_leader=False)
+    elif len(filtered_rebars) == 2 and filtered_rebars[0].GetShapeId() == rebarShapes['5_U-Shape'].Id and len(filtered_rebars_hor_in) == 0:
+        # 2
+        create_bending_detail(
+            view,
+            filtered_rebars[:0],
+            'Bending Detail 2 (No hooks)',
+            XYZ(0 * vector.X + -1.9 * perpendicular_vector.X, 0 * vector.Y + -1.9 * perpendicular_vector.Y, 0),
+            'U/Link_Hor'
+        )
+
+        create_rebar_tag_depending_on_rebar(
+            view,
+            filtered_rebars[:0],
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Vertical,
+            'Link&U-Shape+Length',
+            XYZ(0 * vector.X + -1.15 * perpendicular_vector.X, 0 * vector.Y + -15 * perpendicular_vector.Y, 0),
+            'U/Link_Hor',
+            create_only_for_one=True,
+            has_leader=False)
+
+        create_bending_detail(
+            view,
+            filtered_rebars[1:],
+            'Bending Detail 2 (No hooks)',
+            XYZ(0 * vector.X + -2.1 * perpendicular_vector.X, 0 * vector.Y + -2.1 * perpendicular_vector.Y, 0),
+            'U/Link_Hor'
+        )
+
+        create_rebar_tag_depending_on_rebar(
+            view,
+            filtered_rebars[1:],
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Vertical,
+            'Link&U-Shape+Length',
+            XYZ(0 * vector.X + -2.15 * perpendicular_vector.X, 0 * vector.Y + -15 * perpendicular_vector.Y, 0),
+            'U/Link_Hor',
+            create_only_for_one=True,
+            has_leader=False)
+    elif len(filtered_rebars) == 1 and filtered_rebars[0].GetShapeId() == rebarShapes['4_Link'].Id:
+        print('3 hahaha')
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+
 
 
 def create_bending_detail(view, all_rebars, tag_type_name, tag_position, partitionName, create_only_for_one=False):
@@ -455,6 +672,7 @@ windowFamilyObject = doc.GetElement(selection[0])
 print("Selected Element:", windowFamilyObject.Symbol.Family.Name)
 
 tagTypes = get_tag_types()
+rebarShapes = get_shapes_ids()
 
 window_origin = windowFamilyObject.Location.Point
 window_bbox = windowFamilyObject.get_BoundingBox(None)
@@ -542,13 +760,13 @@ def get_front_view():
         win_depth
     )
     section_box.Transform = transform
-
+    print('123123')
     section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
     views = FilteredElementCollector(doc).OfClass(View).ToElements()
     viewTemplates = [v for v in views if v.IsTemplate and "Window_View" in v.Name.ToString()]
     win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
     win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
-
+    print('123123')
     left_rebar_start_point = XYZ(
         window_bbox.Min.X + left_offset * get_wall_direction_vector(host_object).X,
         window_bbox.Min.Y + left_offset * get_wall_direction_vector(host_object).Y,
@@ -571,8 +789,11 @@ def get_front_view():
     for reb in all_rebars:
         if reb.GetHostId() != host_object.Id:
             rebar_ids_to_hide.Add(reb.Id)
-    win_elevation.HideElements(rebar_ids_to_hide)
-
+    try:
+        win_elevation.HideElements(rebar_ids_to_hide)
+    except:
+        print('There are no rebars to hide')
+    print('123123')
     perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
 
     all_rebars = geographical_finding_algorythm(
@@ -596,7 +817,7 @@ def get_front_view():
         TagOrientation.Horizontal,
         'Horizontal_Bars',
         window_origin + XYZ(1, 1, win_height + 0.85),
-        'Window_Detail_1')
+        'WD_Hor_14_up')
 
     create_rebar_tag(
         win_elevation,
@@ -605,7 +826,7 @@ def get_front_view():
         TagOrientation.Vertical,
         'Column_Vertical',
         window_origin + XYZ((win_width + 1.2) * vector.X, (win_width + 1.2) * vector.Y, win_height / 2),
-        'Window_Detail_2')
+        'WD_Vert_14')
 
     create_rebar_tag(
         win_elevation,
@@ -614,7 +835,7 @@ def get_front_view():
         TagOrientation.Horizontal,
         'Horizontal_Bars',
         window_origin + XYZ(1, 1, -0.85),
-        'Window_Detail_3')
+        'WD_Hor_14_down')
 
     create_rebar_tag(
         win_elevation,
@@ -623,7 +844,7 @@ def get_front_view():
         TagOrientation.Vertical,
         'Column_Vertical',
         window_origin + XYZ(-(win_width + 1) * vector.X, -(win_width + 1) * vector.Y, win_height / 2),
-        'Window_Detail_4')
+        'WD_Vert_14_sh_out')
 
     # ?????????????????? SMTH wrong in revit file, not in code
     try:
@@ -634,9 +855,9 @@ def get_front_view():
             TagOrientation.Vertical,
             'Column_Vertical',
             window_origin + XYZ(-(win_width / 2 + 0.5) * vector.X, -(win_width / 2 + 0.5) * vector.Y, win_height / 2),
-            'Window_Detail_5')
+            'WD_Vert_14_In')
     except Exception:
-        print('Smth wrong with Window_Detail_5')
+        print('Smth wrong with WD_Vert_14_In')
 
     create_rebar_tag(
         win_elevation,
@@ -645,7 +866,7 @@ def get_front_view():
         TagOrientation.Vertical,
         'Column_Vertical',
         window_origin + XYZ(-(win_width / 2 + 1.5) * vector.X, -(win_width / 2 + 1.5) * vector.Y, win_height / 2),
-        'Window_Detail_6')
+        'WD_Vert_14_Out')
 
     # def create_break_line(position, size, orientation):
     #     print('--1')
@@ -938,7 +1159,7 @@ def get_callout():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-0.8 * vector.X + 1.6 * perpendicular_vector.X, -0.8 * vector.Y + 1.6 * perpendicular_vector.Y, 0),
-            'Window_Detail_4')
+            'WD_Vert_14_sh_out')
 
         create_rebar_tag_depending_on_rebar(
             callout,
@@ -947,7 +1168,7 @@ def get_callout():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1 * vector.X + 2.47 * perpendicular_vector.X, -1 * vector.Y + 2.47 * perpendicular_vector.Y, 0),
-            'Window_Detail_5',
+            'WD_Vert_14_In',
             create_only_for_one=True)
 
         create_rebar_tag_depending_on_rebar(
@@ -957,7 +1178,7 @@ def get_callout():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(0 * vector.X + 2 * perpendicular_vector.X, 0 * vector.Y + 2 * perpendicular_vector.Y, 0),
-            'Window_Detail_6',
+            'WD_Vert_14_Out',
             create_only_for_one=True)
 
         create_rebar_tag_depending_on_rebar(
@@ -967,7 +1188,7 @@ def get_callout():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-0.2 * vector.X + 2 * perpendicular_vector.X, -0.2 * vector.Y + 2 * perpendicular_vector.Y, 0),
-            'Window_Front_Detail_11')
+            'WD_Vert_14_sh_in')
 
         create_rebar_tag_depending_on_rebar(
             callout,
@@ -976,7 +1197,7 @@ def get_callout():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(0.9 * vector.X + 2 * perpendicular_vector.X, 0.9 * vector.Y + 2 * perpendicular_vector.Y, 0),
-            'Window_Front_Detail_10')
+            'Vert_8_sh')
 
         create_rebar_tag_depending_on_rebar(
             callout,
@@ -985,7 +1206,7 @@ def get_callout():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-0.9 * vector.X + 2 * perpendicular_vector.X, -0.9 * vector.Y + 2 * perpendicular_vector.Y, 0),
-            'Window_Front_Detail_9')
+            'Vert_8')
 
         create_rebar_tag_depending_on_rebar(
             callout,
@@ -994,7 +1215,7 @@ def get_callout():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(0.2 * vector.X + 2 * perpendicular_vector.X, 0.2 * vector.Y + 2 * perpendicular_vector.Y, 0),
-            'Window_Detail_2')
+            'WD_Vert_14')
 
         create_rebar_tag_depending_on_rebar(
             callout,
@@ -1003,7 +1224,7 @@ def get_callout():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-0.4 * vector.X + 1.42 * perpendicular_vector.X, -0.4 * vector.Y + 1.42 * perpendicular_vector.Y, 0),
-            'Window_Front_Detail_4',
+            'Vert_Out',
             create_only_for_one=True)
 
         create_rebar_tag_depending_on_rebar(
@@ -1013,24 +1234,24 @@ def get_callout():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1.1 * vector.X + 2.47 * perpendicular_vector.X, -1.1 * vector.Y + 2.47 * perpendicular_vector.Y, 0),
-            'Window_Front_Detail_3',
+            'Vert_In',
             create_only_for_one=True)
 
-        create_rebar_tag_depending_on_rebar(
-            callout,
-            all_rebars,
-            TagMode.TM_ADDBY_CATEGORY,
-            TagOrientation.Horizontal,
-            'Horizontal_Bars',
-            XYZ(0.8 * vector.X + 1.6 * perpendicular_vector.X, 0.8 * vector.Y + 1.6 * perpendicular_vector.Y, 0),
-            'Window_Detail_20')
+        # create_rebar_tag_depending_on_rebar(
+        #     callout,
+        #     all_rebars,
+        #     TagMode.TM_ADDBY_CATEGORY,
+        #     TagOrientation.Horizontal,
+        #     'Horizontal_Bars',
+        #     XYZ(0.8 * vector.X + 1.6 * perpendicular_vector.X, 0.8 * vector.Y + 1.6 * perpendicular_vector.Y, 0),
+        #     'Window_Detail_20')
 
         create_bending_detail(
             callout,
             all_rebars,
             'Bending Detail 2 (No hooks)',
-            XYZ(0 * vector.X + -1.3 * perpendicular_vector.X, 0 * vector.Y + -1.3 * perpendicular_vector.Y, 0),
-            'Bending_10'
+            XYZ(2 * vector.X + -1.4 * perpendicular_vector.X, 2 * vector.Y + -1.4 * perpendicular_vector.Y, 0),
+            'U_Hor_Small_sh'
         )
         create_rebar_tag_depending_on_rebar(
             callout,
@@ -1038,8 +1259,8 @@ def get_callout():
             TagMode.TM_ADDBY_CATEGORY,
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
-            XYZ(0 * vector.X + -0.95 * perpendicular_vector.X, 0 * vector.Y + -0.95 * perpendicular_vector.Y, 0),
-            'Bending_10',
+            XYZ(2 * vector.X + -1.05 * perpendicular_vector.X, 2 * vector.Y + -1.05 * perpendicular_vector.Y, 0),
+            'U_Hor_Small_sh',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1047,8 +1268,8 @@ def get_callout():
             callout,
             all_rebars,
             'Bending Detail 2 (No hooks)',
-            XYZ(0 * vector.X + -1.45 * perpendicular_vector.X, 0 * vector.Y + -1.45 * perpendicular_vector.Y, 0),
-            'Bending_11'
+            XYZ(-2 * vector.X + -2.45 * perpendicular_vector.X, -2 * vector.Y + -2.45 * perpendicular_vector.Y, 0),
+            'U_Hor_Small'
         )
         create_rebar_tag_depending_on_rebar(
             callout,
@@ -1056,8 +1277,8 @@ def get_callout():
             TagMode.TM_ADDBY_CATEGORY,
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
-            XYZ(0 * vector.X + -1.1 * perpendicular_vector.X, 0 * vector.Y + -1.1 * perpendicular_vector.Y, 0),
-            'Bending_11',
+            XYZ(-2 * vector.X + -2.1 * perpendicular_vector.X, -2 * vector.Y + -2.1 * perpendicular_vector.Y, 0),
+            'U_Hor_Small',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1065,8 +1286,8 @@ def get_callout():
             callout,
             all_rebars,
             'Bending Detail 2 (No hooks)',
-            XYZ(0 * vector.X + -2.45 * perpendicular_vector.X, 0 * vector.Y + -2.45 * perpendicular_vector.Y, 0),
-            'Window_Front_Detail_12'
+            XYZ(0 * vector.X + -3.3 * perpendicular_vector.X, 0 * vector.Y + -3.3 * perpendicular_vector.Y, 0),
+            'U_Hor'
         )
         create_rebar_tag_depending_on_rebar(
             callout,
@@ -1074,10 +1295,14 @@ def get_callout():
             TagMode.TM_ADDBY_CATEGORY,
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
-            XYZ(0 * vector.X + -2.2 * perpendicular_vector.X, 0 * vector.Y + -2.2 * perpendicular_vector.Y, 0),
-            'Window_Front_Detail_12',
+            XYZ(0 * vector.X + -2.75 * perpendicular_vector.X, 0 * vector.Y + -2.75 * perpendicular_vector.Y, 0),
+            'U_Hor',
             create_only_for_one=True,
             has_leader=False)
+
+        # TODO: WORK WITH 3 VARIANTS!
+
+        check_type_of_ulink_hor_rebar(callout, all_rebars, rebarShapes)
 
         create_bending_detail(
             callout,
@@ -1096,6 +1321,8 @@ def get_callout():
             'Window_Front_Detail_13',
             create_only_for_one=True,
             has_leader=False)
+
+        # TODO: ----------- END -----------
 
     create_text_note(callout, b'\xd7\x97\xd7\x95\xd7\xa5'.decode('UTF-8'), window_origin + XYZ(
         2.3 * windowFamilyObject.FacingOrientation.X + win_height / 2 * vector.X,
@@ -1197,7 +1424,16 @@ def get_perpendicular_window_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, 0.8),
-            'Window_Front_Detail_14')
+            'Hor_B_Corner')
+
+        create_rebar_tag_depending_on_rebar(
+            win_elevation,
+            all_rebars,
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Horizontal,
+            'Horizontal_Bars',
+            XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, 0.8),
+            'Hor_T_Corner')
 
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1206,7 +1442,7 @@ def get_perpendicular_window_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-2.4 * perpendicular_vector.X, -2.4 * perpendicular_vector.Y, 1),
-            'Window_Front_Detail_6',
+            'Hor_Out',
             leader_end_condition=LeaderEndCondition.Free,
             create_only_for_one=True)
 
@@ -1217,7 +1453,7 @@ def get_perpendicular_window_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1.29 * perpendicular_vector.X, -1.29 * perpendicular_vector.Y, 1.5),
-            'Window_Front_Detail_5',
+            'Hor_In',
             create_only_for_one=True)
 
         create_rebar_tag_depending_on_rebar(
@@ -1227,7 +1463,7 @@ def get_perpendicular_window_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1.3 * perpendicular_vector.X, -1.3 * perpendicular_vector.Y, -0.1),
-            'Window_Detail_3')
+            'WD_Hor_14_down')
 
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1236,7 +1472,7 @@ def get_perpendicular_window_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1 * perpendicular_vector.X, -1 * perpendicular_vector.Y, 1),
-            'Window_Front_Detail_8')
+            'Hor_8_down')
 
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1245,7 +1481,7 @@ def get_perpendicular_window_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1 * perpendicular_vector.X, -1 * perpendicular_vector.Y, - 1),
-            'Window_Front_Detail_7')
+            'Hor_8_up')
 
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1254,34 +1490,34 @@ def get_perpendicular_window_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1.3 * perpendicular_vector.X, -1.3 * perpendicular_vector.Y, 0.1),
-            'Window_Detail_1')
+            'WD_Hor_14_up')
 
-        create_rebar_tag_depending_on_rebar(
-            win_elevation,
-            all_rebars,
-            TagMode.TM_ADDBY_CATEGORY,
-            TagOrientation.Horizontal,
-            'Horizontal_Bars',
-            XYZ(-2.4 * perpendicular_vector.X, -2.4 * perpendicular_vector.Y, 0),
-            'Window_Front_Detail_2',
-            create_only_for_one=True)
+        # create_rebar_tag_depending_on_rebar(
+        #     win_elevation,
+        #     all_rebars,
+        #     TagMode.TM_ADDBY_CATEGORY,
+        #     TagOrientation.Horizontal,
+        #     'Horizontal_Bars',
+        #     XYZ(-2.4 * perpendicular_vector.X, -2.4 * perpendicular_vector.Y, 0),
+        #     'Hor_Out',
+        #     create_only_for_one=True)
 
-        create_rebar_tag_depending_on_rebar(
-            win_elevation,
-            all_rebars,
-            TagMode.TM_ADDBY_CATEGORY,
-            TagOrientation.Horizontal,
-            'Horizontal_Bars',
-            XYZ(-1.29 * perpendicular_vector.X, -1.29 * perpendicular_vector.Y, -0.47),
-            'Window_Front_Detail_1',
-            create_only_for_one=True)
+        # create_rebar_tag_depending_on_rebar(
+        #     win_elevation,
+        #     all_rebars,
+        #     TagMode.TM_ADDBY_CATEGORY,
+        #     TagOrientation.Horizontal,
+        #     'Horizontal_Bars',
+        #     XYZ(-1.29 * perpendicular_vector.X, -1.29 * perpendicular_vector.Y, -0.47),
+        #     'Hor_In',
+        #     create_only_for_one=True)
 
         create_bending_detail(
             win_elevation,
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(1.3 * perpendicular_vector.X, 1.3 * perpendicular_vector.Y, 1.5),
-            'Bending_1'
+            'U_Vert_Small_down'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1290,7 +1526,7 @@ def get_perpendicular_window_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(0.85 * perpendicular_vector.X, 0.85 * perpendicular_vector.Y, 1.5),
-            'Bending_1',
+            'U_Vert_Small_down',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1299,7 +1535,7 @@ def get_perpendicular_window_section():
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(2.2 * perpendicular_vector.X, 2.2 * perpendicular_vector.Y, -1.9),
-            'Bending_2'
+            'U_Vert_Small_up'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1308,7 +1544,7 @@ def get_perpendicular_window_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(1.75 * perpendicular_vector.X, 1.75 * perpendicular_vector.Y, -1.9),
-            'Bending_2',
+            'U_Vert_Small_up',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1317,7 +1553,7 @@ def get_perpendicular_window_section():
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(3.2 * perpendicular_vector.X, 3.2 * perpendicular_vector.Y, 0),
-            'Bending_3'
+            'U_Above_Out'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1326,7 +1562,7 @@ def get_perpendicular_window_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(3.55 * perpendicular_vector.X, 3.55 * perpendicular_vector.Y, 0),
-            'Bending_3',
+            'U_Above_Out',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1335,7 +1571,7 @@ def get_perpendicular_window_section():
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(1.8 * perpendicular_vector.X, 1.8 * perpendicular_vector.Y, 0),
-            'Bending_4'
+            'U_Above_In'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1344,7 +1580,7 @@ def get_perpendicular_window_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(1.45 * perpendicular_vector.X, 1.45 * perpendicular_vector.Y, 0),
-            'Bending_4',
+            'U_Above_In',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1389,7 +1625,7 @@ def get_perpendicular_window_section():
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(3.2 * perpendicular_vector.X, 3.2 * perpendicular_vector.Y, 0),
-            'Bending_7'
+            'L_Out'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1398,7 +1634,7 @@ def get_perpendicular_window_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(3.55 * perpendicular_vector.X, 3.55 * perpendicular_vector.Y, 0),
-            'Bending_7',
+            'L_Out',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1407,7 +1643,7 @@ def get_perpendicular_window_section():
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(1.8 * perpendicular_vector.X, 1.8 * perpendicular_vector.Y, 0),
-            'Bending_8'
+            'L_In'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1416,7 +1652,7 @@ def get_perpendicular_window_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(1.45 * perpendicular_vector.X, 1.45 * perpendicular_vector.Y, 0),
-            'Bending_8',
+            'L_In',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1425,7 +1661,7 @@ def get_perpendicular_window_section():
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(2.5 * perpendicular_vector.X, 2.5 * perpendicular_vector.Y, 0),
-            'Bending_9'
+            'U_Vert_Starter'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1434,7 +1670,7 @@ def get_perpendicular_window_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(2.15 * perpendicular_vector.X, 2.15 * perpendicular_vector.Y, 0),
-            'Bending_9',
+            'U_Vert_Starter',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1613,7 +1849,17 @@ def get_perpendicular_shelter_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, 0.8),
-            'Window_Front_Detail_14',
+            'Hor_B_Corner',
+            leader_end_condition=LeaderEndCondition.Free)
+
+        create_rebar_tag_depending_on_rebar(
+            win_elevation,
+            all_rebars,
+            TagMode.TM_ADDBY_CATEGORY,
+            TagOrientation.Horizontal,
+            'Horizontal_Bars',
+            XYZ(-1.5 * perpendicular_vector.X, -1.5 * perpendicular_vector.Y, 0.8),
+            'Hor_T_Corner',
             leader_end_condition=LeaderEndCondition.Free)
 
         create_rebar_tag_depending_on_rebar(
@@ -1623,7 +1869,7 @@ def get_perpendicular_shelter_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-2.4 * perpendicular_vector.X, -2.4 * perpendicular_vector.Y, 1),
-            'Window_Front_Detail_6',
+            'Hor_Out',
             leader_end_condition=LeaderEndCondition.Free,
             create_only_for_one=True)
 
@@ -1634,7 +1880,7 @@ def get_perpendicular_shelter_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1.29 * perpendicular_vector.X, -1.29 * perpendicular_vector.Y, 1.5),
-            'Window_Front_Detail_5',
+            'Hor_In',
             leader_end_condition=LeaderEndCondition.Free,
             create_only_for_one=True)
 
@@ -1645,7 +1891,7 @@ def get_perpendicular_shelter_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1.65 * perpendicular_vector.X, -1.3 * perpendicular_vector.Y, -0.1),
-            'Window_Detail_3',
+            'WD_Hor_14_down',
             leader_end_condition=LeaderEndCondition.Free)
 
         create_rebar_tag_depending_on_rebar(
@@ -1655,7 +1901,7 @@ def get_perpendicular_shelter_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1.9 * perpendicular_vector.X, -1.9 * perpendicular_vector.Y, 0),
-            'Window_Front_Detail_12',
+            'U_Hor',
             leader_end_condition=LeaderEndCondition.Free,
             create_only_for_one=True)
 
@@ -1666,38 +1912,38 @@ def get_perpendicular_shelter_section():
             TagOrientation.Horizontal,
             'Horizontal_Bars',
             XYZ(-1.65 * perpendicular_vector.X, -1.65 * perpendicular_vector.Y, 0.1),
-            'Window_Detail_1',
+            'WD_Hor_14_up',
             leader_end_condition=LeaderEndCondition.Free
         )
 
-        create_rebar_tag_depending_on_rebar(
-            win_elevation,
-            all_rebars,
-            TagMode.TM_ADDBY_CATEGORY,
-            TagOrientation.Horizontal,
-            'Horizontal_Bars',
-            XYZ(-2.4 * perpendicular_vector.X, -2.4 * perpendicular_vector.Y, 0.5),
-            'Window_Front_Detail_2',
-            leader_end_condition=LeaderEndCondition.Free,
-            create_only_for_one=True)
+        # create_rebar_tag_depending_on_rebar(
+        #     win_elevation,
+        #     all_rebars,
+        #     TagMode.TM_ADDBY_CATEGORY,
+        #     TagOrientation.Horizontal,
+        #     'Horizontal_Bars',
+        #     XYZ(-2.4 * perpendicular_vector.X, -2.4 * perpendicular_vector.Y, 0.5),
+        #     'Hor_Out',
+        #     leader_end_condition=LeaderEndCondition.Free,
+        #     create_only_for_one=True)
 
-        create_rebar_tag_depending_on_rebar(
-            win_elevation,
-            all_rebars,
-            TagMode.TM_ADDBY_CATEGORY,
-            TagOrientation.Horizontal,
-            'Horizontal_Bars',
-            XYZ(-1.29 * perpendicular_vector.X, -1.29 * perpendicular_vector.Y, 0),
-            'Window_Front_Detail_1',
-            leader_end_condition=LeaderEndCondition.Free,
-            create_only_for_one=True)
+        # create_rebar_tag_depending_on_rebar(
+        #     win_elevation,
+        #     all_rebars,
+        #     TagMode.TM_ADDBY_CATEGORY,
+        #     TagOrientation.Horizontal,
+        #     'Horizontal_Bars',
+        #     XYZ(-1.29 * perpendicular_vector.X, -1.29 * perpendicular_vector.Y, 0),
+        #     'Hor_In',
+        #     leader_end_condition=LeaderEndCondition.Free,
+        #     create_only_for_one=True)
 
         create_bending_detail(
             win_elevation,
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(2.4 * perpendicular_vector.X, 2.4 * perpendicular_vector.Y, 0),
-            'Window_Detail_6'
+            'WD_Vert_14_Out'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1706,7 +1952,7 @@ def get_perpendicular_shelter_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(2.1 * perpendicular_vector.X, 2.1 * perpendicular_vector.Y, 0),
-            'Window_Detail_6',
+            'WD_Vert_14_Out',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1715,7 +1961,7 @@ def get_perpendicular_shelter_section():
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(3.4 * perpendicular_vector.X, 3.4 * perpendicular_vector.Y, 0),
-            'Bending_3'
+            'U_Above_Out'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1724,7 +1970,7 @@ def get_perpendicular_shelter_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(3.7 * perpendicular_vector.X, 3.7 * perpendicular_vector.Y, 0),
-            'Bending_3',
+            'U_Above_Out',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1751,7 +1997,7 @@ def get_perpendicular_shelter_section():
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(3.4 * perpendicular_vector.X, 3.4 * perpendicular_vector.Y, 0),
-            'Bending_7'
+            'L_Out'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1760,7 +2006,7 @@ def get_perpendicular_shelter_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(4.4 * perpendicular_vector.X, 4.4 * perpendicular_vector.Y, 0),
-            'Bending_7',
+            'L_Out',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1769,7 +2015,7 @@ def get_perpendicular_shelter_section():
             all_rebars,
             'Bending Detail 2 (No hooks)',
             XYZ(2.5 * perpendicular_vector.X, 2.5 * perpendicular_vector.Y, 0),
-            'Bending_9'
+            'U_Vert_Starter'
         )
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1778,7 +2024,7 @@ def get_perpendicular_shelter_section():
             TagOrientation.Vertical,
             'Link&U-Shape+Length',
             XYZ(2.2 * perpendicular_vector.X, 2.2 * perpendicular_vector.Y, 0),
-            'Bending_9',
+            'U_Vert_Starter',
             create_only_for_one=True,
             has_leader=False)
 
@@ -1788,7 +2034,7 @@ def get_perpendicular_shelter_section():
                 all_rebars,
                 'Bending Detail 2 (No hooks)',
                 XYZ(1.9 * perpendicular_vector.X, 1.9 * perpendicular_vector.Y, 0),
-                'Window_Detail_5'
+                'WD_Vert_14_In'
             )
             create_rebar_tag_depending_on_rebar(
                 win_elevation,
@@ -1797,7 +2043,7 @@ def get_perpendicular_shelter_section():
                 TagOrientation.Vertical,
                 'Link&U-Shape+Length',
                 XYZ(1.5 * perpendicular_vector.X, 1.5 * perpendicular_vector.Y, 0),
-                'Window_Detail_5',
+                'WD_Vert_14_In',
                 create_only_for_one=True,
                 has_leader=False)
 
@@ -1881,9 +2127,9 @@ def get_perpendicular_shelter_section():
 transaction = Transaction(doc, 'Generate Window Sections')
 transaction.Start()
 try:
-    get_front_view()
-    get_perpendicular_window_section()
-    get_perpendicular_shelter_section()
+    # get_front_view()
+    # get_perpendicular_window_section()
+    # get_perpendicular_shelter_section()
     get_callout()
 except Exception as err:
     print('ERROR!', err)
