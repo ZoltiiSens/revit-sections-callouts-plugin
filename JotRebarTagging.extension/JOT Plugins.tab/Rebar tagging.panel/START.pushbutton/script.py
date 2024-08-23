@@ -2123,13 +2123,13 @@ def get_perpendicular_shelter_section():
 
 transaction = Transaction(doc, 'Generate Window Sections')
 transaction.Start()
-try:
-    get_front_view()
-    get_perpendicular_window_section()
-    get_perpendicular_shelter_section()
-    get_callout()
-except Exception as err:
-    print('ERROR!', err)
-    print(vars(err))
+# try:
+get_front_view()
+get_perpendicular_window_section()
+get_perpendicular_shelter_section()
+get_callout()
+# except Exception as err:
+#     print('ERROR!', err)
+#     print(vars(err))
 
 transaction.Commit()
