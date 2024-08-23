@@ -507,13 +507,13 @@ def create_bending_detail(view, all_rebars, tag_type_name, tag_position, partiti
             bdetailPosition = tag_position + bdetail_coordinates
 
             bdetail = RebarBendingDetail.Create(
-                doc,
-                view.Id,
-                rebar.Id,
-                0,
-                tagTypes[tag_type_name],
-                bdetailPosition,
-                0)
+                document=doc,
+                viewId=view.Id,
+                reinforcementElementId=rebar.Id,
+                reinforcementElementSubelementKey=0,
+                bendingDetailType=tagTypes[tag_type_name],
+                position=bdetailPosition,
+                rotation=0)
             if create_only_for_one:
                 break
             break
