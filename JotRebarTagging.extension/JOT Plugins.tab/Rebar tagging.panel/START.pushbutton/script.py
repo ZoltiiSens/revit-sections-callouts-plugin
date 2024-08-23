@@ -309,10 +309,9 @@ def check_type_of_ulink_hor_rebar(view, all_rebars, rebarShapes):
     for rebar in all_rebars:
         if rebar.LookupParameter("Partition").AsString() == 'Hor_In':
             filtered_rebars_hor_in.append(rebar)
-    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-    print(filtered_rebars, filtered_rebars_hor_in)
-    print(len(filtered_rebars) == 1, filtered_rebars[0].GetShapeId() == rebarShapes['5_U-Shape'].Id, len(filtered_rebars_hor_in) > 0)
-    if len(filtered_rebars) == 1 and filtered_rebars[0].GetShapeId() == rebarShapes['5_U-Shape'].Id and len(filtered_rebars_hor_in) > 0:
+    if len(filtered_rebars) == 0:
+        pass
+    elif len(filtered_rebars) == 1 and filtered_rebars[0].GetShapeId() == rebarShapes['5_U-Shape'].Id and len(filtered_rebars_hor_in) > 0:
         # 3
         create_bending_detail(
             view,
@@ -488,8 +487,6 @@ def check_type_of_ulink_hor_rebar(view, all_rebars, rebarShapes):
             has_leader=False)
     elif len(filtered_rebars) == 1 and filtered_rebars[0].GetShapeId() == rebarShapes['4_Link'].Id:
         print('3 hahaha')
-    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
-
 
 
 def create_bending_detail(view, all_rebars, tag_type_name, tag_position, partitionName, create_only_for_one=False):
