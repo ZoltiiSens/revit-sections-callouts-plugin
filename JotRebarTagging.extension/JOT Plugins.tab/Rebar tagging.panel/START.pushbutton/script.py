@@ -646,13 +646,13 @@ perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
 wall_bbox = host_object.get_BoundingBox(None)
 wall_height = wall_bbox.Max.Z - wall_bbox.Min.Z
 wallDepth = UnitUtils.ConvertToInternalUnits(host_object.Width, UnitTypeId.Feet)
-wall_level_id = host_object.LevelId
-
-if wall_level_id:
-    wall_level = doc.GetElement(wall_level_id)  # Get the Level element
-else:
-    print("Wall does not have an associated level. Plugin will now stop.")
-    sys.exit()
+# wall_level_id = host_object.LevelId
+#
+# if wall_level_id:
+#     wall_level = doc.GetElement(wall_level_id)  # Get the Level element
+# else:
+#     print("Wall does not have an associated level. Plugin will now stop.")
+#     sys.exit()
 
 
 # -------------------------------------------------------------------------------- Front view
@@ -1144,8 +1144,6 @@ def get_callout():
             create_only_for_one=True,
             has_leader=False)
 
-        # TODO: WORK WITH 3 VARIANTS!
-
         check_type_of_ulink_hor_rebar(callout, all_rebars, rebarShapes)
 
         create_bending_detail(
@@ -1165,8 +1163,6 @@ def get_callout():
             'Window_Front_Detail_13',
             create_only_for_one=True,
             has_leader=False)
-
-        # TODO: ----------- END -----------
 
     create_text_note(callout, b'\xd7\x97\xd7\x95\xd7\xa5'.decode('UTF-8'), window_origin + XYZ(
         2.3 * windowFamilyObject.FacingOrientation.X + win_height / 2 * vector.X,
@@ -1239,6 +1235,8 @@ def get_perpendicular_window_section():
     views = FilteredElementCollector(doc).OfClass(View).ToElements()
     viewTemplates = [v for v in views if v.IsTemplate and "!!!Section_Reinforcement" in v.Name.ToString()]
 
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    print('123', section_type_id)
     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
     print(viewTemplates)
 
@@ -1946,19 +1944,17 @@ def get_perpendicular_shelter_section():
         except:
             new_name += '*'
 
-# try:
-transaction = Transaction(doc, 'Generate Window Sections')
-transaction.Start()
+try:
+    transaction = Transaction(doc, 'Generate Window Sections')
+    transaction.Start()
 
-# get_front_view()
-get_perpendicular_window_section()
-# get_perpendicular_shelter_section()
-# get_callout()
+    get_front_view()
+    get_perpendicular_window_section()
+    get_perpendicular_shelter_section()
+    get_callout()
 
-transaction.Commit()
+    transaction.Commit()
 
-# except Exception as err:
-#     print('ERROR!', err)
-#     print(vars(err))
-
+except Exception as err:
+    print('ERROR!', err)
 
