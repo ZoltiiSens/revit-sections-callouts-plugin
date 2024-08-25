@@ -1,6 +1,7 @@
 # ------------------------------ IMPORTS ------------------------------
 import math
 import sys
+import Autodesk
 
 from Autodesk.Revit.ApplicationServices import *
 from Autodesk.Revit.UI import *
@@ -108,7 +109,8 @@ def find_floors_offsets(current_window):
         if c.Name == 'Floors':
             floor_category = c
     if floor_category is None:
-        raise Exception('There is no floor\'s category named "Floors"')
+        print(':cross_mark: ERROR! There is no necessary floor category "Flooes". Plugin will stop now...')
+        raise Exception('Can\'t find!')
 
     top_floor = geographical_finding_algorythm(
         current_window_bbox.Min,
@@ -164,7 +166,7 @@ def find_rebars_by_quantity_and_spacing(view, start_point, end_point, quantity, 
             target_rebar = reb
             break
     if target_rebar is None:
-        print('Can\'t find rebar set(front view)')
+        print(':warning_sign: WARNING! Can\'t find rebar set(front view)')
         return
     else:
         target_rebar.SetUnobscuredInView(doc.ActiveView, True)
@@ -194,13 +196,25 @@ def get_tag_types():
             result['Wall&Col_Vertical+Length'] = famS
         if 'Link&U-Shape+Length' in name:
             result['Link&U-Shape+Length'] = famS
-
+    if 'Horizontal_Bars' not in result.keys():
+        print(':cross_mark: ERROR! There is no necessary tag type "Horizontal_Bars". Plugin will stop now...')
+        raise Exception('Can\'t find!')
+    if 'Column_Vertical' not in result.keys():
+        print(':cross_mark: ERROR! There is no necessary tag type "Column_Vertical". Plugin will stop now...')
+        raise Exception('Can\'t find!')
+    if 'Wall&Col_Vertical+Length' not in result.keys():
+        print(':cross_mark: ERROR! There is no necessary tag type "Wall&Col_Vertical+Length". Plugin will stop now...')
+        raise Exception('Can\'t find!')
+    if 'Link&U-Shape+Length' not in result.keys():
+        print(':cross_mark: ERROR! There is no necessary tag type "Link&U-Shape+Length". Plugin will stop now...')
+        raise Exception('Can\'t find!')
     for bdt in bendingDetailTypes:
         name = bdt.LookupParameter("Type Name").AsString()
         if 'Bending Detail 2 (No hooks)' in name:
             result['Bending Detail 2 (No hooks)'] = bdt
-        if 'Bending Detail 3 (No text)' in name:
-            result['Bending Detail 3 (No text)'] = bdt
+    if 'Bending Detail 2 (No hooks)' not in result.keys():
+        print(':cross_mark: ERROR! There is no necessary bending detail type "Bending Detail 2 (No hooks)". Plugin will stop now...')
+        raise Exception('Can\'t find!')
     return result
 
 
@@ -210,19 +224,20 @@ def get_shapes_ids():
     Link_4 = None
     for rebar in rebars:
         for param in rebar.Parameters:
-            # print(param.AsString())
             if param.AsString() == '5_U-Shape':
-                print('FOUND')
                 U_5_shape = rebar
                 break
             if param.AsString() == '4_Link':
-                print('FOUND')
                 Link_4 = rebar
                 break
         if U_5_shape is not None and Link_4 is not None:
             break
-    print('--------------------------------------------------------------==')
-    print(U_5_shape)
+    if U_5_shape is None:
+        print(':cross_mark: ERROR! There is no necessary shape "5_U-Shape". Plugin will stop now...')
+        raise Exception('Can\'t find!')
+    if Link_4 is None:
+        print(':cross_mark:ERROR! There is no necessary shape "4_Link". Plugin will stop now...')
+        raise Exception('Can\'t find!')
     return {
         '5_U-Shape': U_5_shape,
         '4_Link': Link_4
@@ -494,7 +509,6 @@ def create_bending_detail(view, all_rebars, tag_type_name, tag_position, partiti
     for rebar in all_rebars:
         if rebar.LookupParameter("Partition").AsString() == partitionName:
             filtered_rebars.append(rebar)
-    print(filtered_rebars)
     bdetail = None
     for i, rebar in enumerate(filtered_rebars):
         if bdetail is None:
@@ -505,6 +519,31 @@ def create_bending_detail(view, all_rebars, tag_type_name, tag_position, partiti
                 (rebar_bbox.Min.Z + rebar_bbox.Max.Z) / 2
             )
             bdetailPosition = tag_position + bdetail_coordinates
+
+            print(view.Id)
+            print(type(view.Id))
+            print(type(view))
+            print(doc)
+            print(view.Id)
+            print(rebar.Id)
+            print(0)
+            print(tagTypes[tag_type_name])
+
+
+
+            print('===---===')
+            print(tagTypes)
+            print('---===---')
+            print(tagTypes[tag_type_name])
+            print('---===---')
+            print('type', type(tagTypes[tag_type_name]))
+            print('---===---')
+            print(tag_type_name)
+            print('===---===')
+            print(type(view))
+
+            print(bdetailPosition)
+            print(0)
 
             bdetail = RebarBendingDetail.Create(
                 document=doc,
@@ -528,108 +567,31 @@ def create_text_note(view, text, position):
         if '3.5mm Ariall with border' in name:
             text_note_type = tnt
             break
+    if text_note_type is None:
+        print(':cross_mark: ERROR! There is no "3.5mm Ariall with border" text note start. Plugin will stop now...')
+        raise Exception('Can\'t find!')
+        # return
     text_note_options = TextNoteOptions(text_note_type.Id)
     text_note = TextNote.Create(doc, view.Id, position, text, text_note_options)
     return text_note
 
 
 def create_detail_component(view, location):
-    try:
-        collector = FilteredElementCollector(doc)
-        family_symbols = collector.OfCategory(BuiltInCategory.OST_DetailComponents).OfClass(FamilySymbol)
-        break_line_type = None
-        for fs in family_symbols:
-            fs_name = fs.get_Parameter(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM).AsString()
-            if fs_name == 'Break Line':
-                break_line_type = fs
-                break
+    collector = FilteredElementCollector(doc)
+    family_symbols = collector.OfCategory(BuiltInCategory.OST_DetailComponents).OfClass(FamilySymbol)
+    break_line_type = None
+    for fs in family_symbols:
+        fs_name = fs.get_Parameter(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM).AsString()
+        if fs_name == 'Break Line':
+            break_line_type = fs
+            break
 
-        if break_line_type is None:
-            print('no type')
-            raise Exception('There is no necessary type: Break Line')
+    if break_line_type is None:
+        print(':cross_mark: ERROR! There is no necessary detail type "Break Line". Plugin will stop now...')
+        raise Exception('Can\'t find!')
 
-        detail_component = doc.Create.NewFamilyInstance(location, break_line_type, view)
-        # print(detail_component.rotate())
-
-        # myTransform = detail_component.GetTotalTransform()
-        # myLine = Line.CreateUnbound(myTransform.Origin, myTransform.BasisZ)
-        # ElementTransformUtils.RotateElement(doc, detail_component.Id, myLine, radians)
-
-        # Set the size parameter
-        # param = detail_component.LookupParameter('Width')
-        # if param:
-        #     param.Set(20)
-        # else:
-        #     print('no width')
-
-        # rotate
-        # location = detail_component.Location
-        # location_point = location.Point
-        #
-        # axis = [(0, 0, 0), (1, 0, 0)]
-        #
-        # # Define the rotation axis as a Line
-        # # The axis parameter is expected to be a tuple or list of two XYZ points
-        # rotation_axis = Line.CreateBound(XYZ(*axis[0]), XYZ(*axis[1]))
-        #
-        # # Define the angle of rotation in radians (90 degrees)
-        # angle = 90.0 * (3.141592653589793 / 180.0)  # Convert degrees to radians
-        #
-        # # Rotate the family instance
-        # ElementTransformUtils.RotateElement(doc, detail_component.Id, rotation_axis, angle)
-
-        return detail_component
-
-    except Exception as e:
-        raise e
-
-
-# ???
-def create_dimension_by_XYZ(view, start_point, end_point, refs_array):
-    # min_point = XYZ(min(start_point.X, end_point.X), min(start_point.Y, end_point.Y), min(start_point.Z, end_point.Z))
-    # max_point = XYZ(max(start_point.X, end_point.X), max(start_point.Y, end_point.Y), max(start_point.Z, end_point.Z))
-    line = Line.CreateBound(start_point, end_point)
-
-    dimension = doc.Create.NewDimension(view, line, refs_array)
-    return dimension
-
-
-# ???
-def get_rebar_reference(rebar):
-    """
-    Gets the reference of the rebar element.
-
-    :param rebar: The rebar element.
-    :return: The reference of the rebar element.
-    """
-    # Get the geometry of the rebar
-    opt = Options()
-    geometry = rebar.get_Geometry(opt)
-
-    # Iterate over geometry objects to find the reference
-    for geomObj in geometry:
-        if isinstance(geomObj, GeometryInstance):
-            instance = geomObj
-            instanceSymbolGeometry = instance.GetSymbolGeometry()
-            for instGeomObj in instanceSymbolGeometry:
-                if isinstance(instGeomObj, Curve):
-                    # Return the reference of the first curve found
-                    return instGeomObj.Reference
-
-    return None
-
-
-# ???
-def get_geometric_references(element):
-    references = []
-    # For example, get all faces of an element
-    options = Options()
-    geom_element = element.get_Geometry(options)
-    for geom_obj in geom_element:
-        if isinstance(geom_obj, Solid):
-            for face in geom_obj.Faces:
-                references.append(Reference(face))
-    return references
+    detail_component = doc.Create.NewFamilyInstance(location, break_line_type, view)
+    return detail_component
 
 
 def create_spot_elevation(view, element, point, ):
@@ -646,7 +608,9 @@ def create_spot_elevation(view, element, point, ):
                 spot_dimension_type = fs
                 break
         except:
-            print('no name')
+            print(':cross_mark: ERROR! There is no necessary spot elevation type: "Arrow (Project)". Plugin will stop now...')
+            raise Exception('Cant\'t find!')
+
 
     spot_dimension = doc.Create.NewSpotElevation(
         view,
@@ -703,7 +667,6 @@ def get_front_view():
         object_to_find_name=windowFamilyObject.Name,
         ignore_id=windowFamilyObject.Id)
     left_offset = UnitUtils.ConvertToInternalUnits(120, UnitTypeId.Centimeters)
-    print("windows", windows)
     if len(windows):
         best_distance = float('inf')
         for window in windows:
@@ -757,13 +720,11 @@ def get_front_view():
         win_depth
     )
     section_box.Transform = transform
-    print('123123')
     section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
     views = FilteredElementCollector(doc).OfClass(View).ToElements()
     viewTemplates = [v for v in views if v.IsTemplate and "Window_View" in v.Name.ToString()]
     win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
     win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
-    print('123123')
     left_rebar_start_point = XYZ(
         window_bbox.Min.X + left_offset * get_wall_direction_vector(host_object).X,
         window_bbox.Min.Y + left_offset * get_wall_direction_vector(host_object).Y,
@@ -790,7 +751,6 @@ def get_front_view():
         win_elevation.HideElements(rebar_ids_to_hide)
     except:
         print('There are no rebars to hide')
-    print('123123')
     perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
 
     all_rebars = geographical_finding_algorythm(
@@ -865,118 +825,12 @@ def get_front_view():
         window_origin + XYZ(-(win_width / 2 + 1.5) * vector.X, -(win_width / 2 + 1.5) * vector.Y, win_height / 2),
         'WD_Vert_14_Out')
 
-    # def create_break_line(position, size, orientation):
-    #     print('--1')
-    #     x = position.X
-    #     y = position.Y
-    #     z = position.Z
-    #     half_size = size / 2.0
-    #     angle_rad = orientation * (3.141592653589793 / 180.0)  # Convert degrees to radians
-    #     print('--2')
-    #     # Calculate start and end points based on orientation
-    #     start_point = XYZ(x - half_size * math.cos(angle_rad), y - half_size * math.sin(angle_rad), z)
-    #     end_point = XYZ(x + half_size * math.cos(angle_rad), y + half_size * math.sin(angle_rad), z)
-    #     print('--3')
-    #     # Create a new line in the detail lines
-    #     line = Line.CreateBound(start_point, end_point)
-    #     print('--4')
-    #
-    #     line = Line.CreateBound(window_origin, window_origin + XYZ(0, 0, 1))
-    #     # Start a new transaction
-    #     detail_line = doc.Create.NewDetailCurve(win_elevation, line)
-    #     break_line_type = None
-    #     for fs in family_symbols:
-    #         fs_name = fs.get_Parameter(BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM).AsString()
-    #         try:
-    #             if fs_name == name:
-    #                 break_line_type = fs
-    #                 break
-    #         except:
-    #             print('no name')
-    #     if break_line_type is None:
-    #         print('no type')
-    #
-    #     return detail_line
-    #
-    # create_break_line(window_origin, 1, 180)
-
     create_detail_component(win_elevation,
                             XYZ(window_origin.X, window_origin.Y, window_origin.Z + win_height / 2) + XYZ(
                                 (left_offset + win_width) * vector.X, (left_offset + win_width) * vector.Y, 0))
     create_detail_component(win_elevation,
                             XYZ(window_origin.X, window_origin.Y, window_origin.Z + win_height / 2) + XYZ(
                                 (right_offset + win_width) * -vector.X, (right_offset + win_width) * -vector.Y, 0))
-
-    # options = Options()
-    # geometry_element = left_reb_5.get_Geometry(options)
-    # print(geometry_element)
-    # print('---')
-    # for geom_obj in geometry_element:
-    #     print(geom_obj)
-    #     r_arr = [].append(geom_obj)
-    #
-    # print('---')
-    #
-    # r_arr = ReferenceArray()
-    # r_arr.Append(Reference(left_reb_5))
-
-    # print('---')
-    # print(left_reb_5)
-    #
-    # options = Options()
-    # #
-    # for subel in left_reb_5.GetSubelements():
-    #     print('-', subel.GetGeometryObject(win_elevation))
-    #     # for geom in subel.GetGeometryObject(win_elevation):
-    #     #     print('-', geom)
-    #
-    # # print(get_rebar_geometric_references(left_reb_5))
-    # print(Reference(left_reb_5.GetFullGeometryForView(win_elevation)))
-    # print('---')
-
-    # ------------------------------------------------------------------------
-    # options = Options()
-    # options.View = win_elevation
-    # options.ComputeReferences = True
-    # options.IncludeNonVisibleObjects = True
-    # r_arr = ReferenceArray()
-    #
-    # wholeRebarGeometry = left_reb_5.get_Geometry(options)
-    # for rebar_geom in wholeRebarGeometry:
-    #     if isinstance(rebar_geom, Solid):
-    #         print('faces')
-    #         for face in rebar_geom.Faces:
-    #             # Do something with the face
-    #             reference = face.Reference
-    #             r_arr.Append(reference)
-    #             print(reference)
-    #         print('edges')
-    #         for edge in rebar_geom.Edges:
-    #             # Do something with the edge
-    #             reference = edge.Reference
-    #             print(reference)
-    #
-    # wholeRebarGeometry = left_reb_8.get_Geometry(options)
-    # for rebar_geom in wholeRebarGeometry:
-    #     if isinstance(rebar_geom, Solid):
-    #         print('faces')
-    #         for face in rebar_geom.Faces:
-    #             # Do something with the face
-    #             reference = face.Reference
-    #             r_arr.Append(reference)
-    #             print(reference)
-    #         print('edges')
-    #         for edge in rebar_geom.Edges:
-    #             # Do something with the edge
-    #             reference = edge.Reference
-    #             print(reference)
-    #
-    # create_dimension_by_XYZ(
-    #     win_elevation,
-    #     XYZ(window_origin.X, window_origin.Y - 5, window_origin.Z),
-    #     XYZ(window_origin.X, window_origin.Y + 5, window_origin.Z),
-    #     r_arr)
-    # ------------------------------------------------------------------------
 
     win_elevation.Scale = 25
     new_name = 'MAMAD_Window_Front_View'
@@ -1000,7 +854,6 @@ def get_callout():
         object_to_find_name=windowFamilyObject.Name,
         ignore_id=windowFamilyObject.Id)
     left_point = window_origin + (win_width + 120 / 30.48) * get_wall_direction_vector(host_object)
-    print("left point 120")
     if len(windows):
         best_distance = float('inf')
         for window in windows:
@@ -1012,7 +865,6 @@ def get_callout():
                     win_width / 2 * get_wall_direction_vector(host_object).X,
                     win_width / 2 * get_wall_direction_vector(host_object).Y,
                     0)
-                print("left point window", left_point)
     else:
         walls = geographical_finding_algorythm(
             window_origin,
@@ -1026,7 +878,6 @@ def get_callout():
                 (win_width + left_offset) * get_wall_direction_vector(host_object).X,
                 (win_width + left_offset) * get_wall_direction_vector(host_object).Y,
                 0)
-            print("left point wall", left_point)
 
     windows = geographical_finding_algorythm(
         window_origin,
@@ -1034,7 +885,6 @@ def get_callout():
         object_to_find_name=windowFamilyObject.Name,
         ignore_id=windowFamilyObject.Id)
     right_point = window_origin - (win_width + 120 / 30.48) * get_wall_direction_vector(host_object)
-    print("right point 120")
     if len(windows):
         best_distance = float('inf')
         for window in windows:
@@ -1046,7 +896,6 @@ def get_callout():
                     win_width / 2 * get_wall_direction_vector(host_object).X,
                     win_width / 2 * get_wall_direction_vector(host_object).Y,
                     0)
-                print("right point window", right_point)
     else:
         walls = geographical_finding_algorythm(
             window_origin,
@@ -1060,9 +909,6 @@ def get_callout():
                 (win_width + right_offset) * get_wall_direction_vector(host_object).X,
                 (win_width + right_offset) * get_wall_direction_vector(host_object).Y,
                 0)
-            print("right point wall", right_point)
-
-    print("points", left_point, right_point, window_origin)
 
     # Plan creation
     current_window_level_id = windowFamilyObject.LevelId
@@ -1071,7 +917,6 @@ def get_callout():
         if ViewFamily.StructuralPlan == x.ViewFamily:
             fec = x
             break
-    print(fec)
     structuralPlan = ViewPlan.Create(doc, fec.Id, current_window_level_id)
 
     perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
@@ -1100,6 +945,7 @@ def get_callout():
     if sill_height_param:
         sill_height_param = sill_height_param.AsDouble()  # Sill height is typically stored in feet
     else:
+        print(':cross_mark: ERROR! Sill Height parameter not found in the window family instance. Plugin will stop now...')
         raise Exception("Sill Height parameter not found in the window family instance.")
 
     view_range = callout.GetViewRange()
@@ -1116,7 +962,8 @@ def get_callout():
     try:
         callout.ApplyViewTemplateParameters(viewTemplates[0])
     except IndexError:
-        print('!!! There is no view template "MAMAD_Window_Callout"')
+        print(':cross_mark: ERROR! There is no necessary view template "MAMAD_Window_Callout". Plugin will stop now...')
+        raise Exception('Can\'t find!')
 
     # all_rebars = find_rebars_on_view(callout)
 
@@ -1360,8 +1207,6 @@ def get_callout():
 def get_perpendicular_window_section():
     top_offset, bottom_offset = find_floors_offsets(windowFamilyObject)
 
-    print('Vector', vector, 'Position', windowFamilyObject.FacingOrientation)
-
     transform = Transform.Identity
     transform.Origin = window_origin
     vector_perp = vector.CrossProduct(XYZ.BasisZ)
@@ -1380,11 +1225,6 @@ def get_perpendicular_window_section():
         exterior_offset = offset_50cm
         interior_offset = offset_70cm
 
-    if windowFamilyObject.FacingOrientation.X + vector.Y < 0.00001:
-        print('One side!')
-    else:
-        print('Not one side!')
-
     section_box.Min = XYZ(
         -wallDepth / 2 - exterior_offset, 0 - bottom_offset, -win_width / 2
     )
@@ -1397,10 +1237,26 @@ def get_perpendicular_window_section():
     section_box.Transform = transform
     section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
     views = FilteredElementCollector(doc).OfClass(View).ToElements()
-    viewTemplates = [v for v in views if v.IsTemplate and "Section_Reinforcement" in v.Name.ToString()]
+    viewTemplates = [v for v in views if v.IsTemplate and "!!!Section_Reinforcement" in v.Name.ToString()]
+
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    print(viewTemplates)
+
+
     win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
-    win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
+
+    try:
+        win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
+    except:
+        print(':cross_mark: ERROR! There is no necessary view template "!!!Section_Reinforcement". Plugin will stop now...')
+        raise Exception('Can\'t find!')
     win_elevation.Scale = 25
+
+
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    print(win_elevation)
+    print(win_elevation.Id)
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 
     rebars_sets = []
     rebars_sets.append(geographical_finding_algorythm(
@@ -1527,13 +1383,19 @@ def get_perpendicular_window_section():
             create_only_for_one=True,
             has_leader=False)
 
+        print('win_elevation', win_elevation)
+        print('all_rebars', all_rebars)
+        print('tag_type_name', 'Bending Detail 2 (No hooks)')
+        print('partitionName', 'U_Vert_Small_up')
+
         create_bending_detail(
-            win_elevation,
-            all_rebars,
-            'Bending Detail 2 (No hooks)',
-            XYZ(2.2 * perpendicular_vector.X, 2.2 * perpendicular_vector.Y, -1.9),
-            'U_Vert_Small_up'
+            view=win_elevation,
+            all_rebars=all_rebars,
+            tag_type_name='Bending Detail 2 (No hooks)',
+            tag_position=XYZ(2.2 * perpendicular_vector.X, 2.2 * perpendicular_vector.Y, -1.9),
+            partitionName='U_Vert_Small_up'
         )
+
         create_rebar_tag_depending_on_rebar(
             win_elevation,
             all_rebars,
@@ -1686,6 +1548,7 @@ def get_perpendicular_window_section():
         if c.Name == 'Floors':
             floor_category = c
     if floor_category is None:
+        print(':cross_mark: ERROR! There is no necessary floor category "Flooes". Plugin will stop now...')
         raise Exception('There is no floor\'s category named "Floors"')
 
     floors = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, top_offset + win_height),
@@ -1725,7 +1588,6 @@ def get_perpendicular_window_section():
     ))
     top_wall = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, top_offset + win_height),
                                               object_to_find_categoty=host_object.Category, ignore_id=host_object.Id)
-    print(top_wall)
     if len(top_wall) and not len(top_win):
         create_detail_component(win_elevation, XYZ(
             window_origin.X,
@@ -1735,42 +1597,12 @@ def get_perpendicular_window_section():
 
     bottom_wall = geographical_finding_algorythm(window_origin, window_origin - XYZ(0, 0, bottom_offset),
                                                  object_to_find_categoty=host_object.Category, ignore_id=host_object.Id)
-    print(bottom_wall)
     if len(bottom_wall):
         create_detail_component(win_elevation, XYZ(
             window_origin.X,
             window_origin.Y,
             window_origin.Z - bottom_offset
         ))
-
-    # # BASE FOR DIMENSIONS
-    # options = Options()
-    # options.View = win_elevation
-    # options.ComputeReferences = True
-    # options.IncludeNonVisibleObjects = True
-    # r_arr = ReferenceArray()
-    #
-    # wholeRebarGeometry = windowFamilyObject.get_Geometry(options)
-    # for rebar_geom in wholeRebarGeometry:
-    #     print('feom', rebar_geom)
-    #     if isinstance(rebar_geom, Solid):
-    #         print('faces')
-    #         for face in rebar_geom.Faces:
-    #             # Do something with the face
-    #             reference = face.Reference
-    #             # r_arr.Append(reference)
-    #             print(reference)
-    #         print('edges')
-    #         for edge in rebar_geom.Edges:
-    #             # Do something with the edge
-    #             reference = edge.Reference
-    #             # r_arr.Append(reference)
-    #             print(reference)
-    # create_dimension_by_XYZ(
-    #     win_elevation,
-    #     XYZ(window_origin.X, window_origin.Y, window_origin.Z - 5),
-    #     XYZ(window_origin.X, window_origin.Y, window_origin.Z + 5),
-    #     r_arr)
 
     new_name = 'MAMAD_Window_Section_1'
     for i in range(10):
@@ -1786,11 +1618,6 @@ def get_perpendicular_window_section():
 def get_perpendicular_shelter_section():
     top_offset, bottom_offset = find_floors_offsets(windowFamilyObject)
 
-    if (windowFamilyObject.FacingOrientation.X == -vector.Y and vector.Y != 0) or (
-            windowFamilyObject.FacingOrientation.Y == vector.X and vector.X != 0):
-        print('One side!')
-    else:
-        print('Not one side!')
 
     transform = Transform.Identity
     transform.Origin = window_origin
@@ -1820,7 +1647,7 @@ def get_perpendicular_shelter_section():
     section_box.Transform = transform
     section_type_id = doc.GetDefaultElementTypeId(ElementTypeGroup.ViewTypeSection)
     views = FilteredElementCollector(doc).OfClass(View).ToElements()
-    viewTemplates = [v for v in views if v.IsTemplate and "Section_Reinforcement" in v.Name.ToString()]
+    viewTemplates = [v for v in views if v.IsTemplate and "!!!Section_Reinforcement" in v.Name.ToString()]
     win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
     win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
     new_name = 'MAMAD_Window_Section_2'
@@ -2059,6 +1886,7 @@ def get_perpendicular_shelter_section():
         if c.Name == 'Floors':
             floor_category = c
     if floor_category is None:
+        print(':cross_mark: ERROR! There is no necessary floor category "Flooes". Plugin will stop now...')
         raise Exception('There is no floor\'s category named "Floors"')
 
     floors = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, top_offset + win_height),
@@ -2094,7 +1922,6 @@ def get_perpendicular_shelter_section():
     ))
     top_wall = geographical_finding_algorythm(window_origin, window_origin + XYZ(0, 0, top_offset + win_height),
                                               object_to_find_categoty=host_object.Category, ignore_id=host_object.Id)
-    print(top_wall)
     if len(top_wall):
         create_detail_component(win_elevation, XYZ(
             window_origin.X,
@@ -2104,7 +1931,6 @@ def get_perpendicular_shelter_section():
 
     bottom_wall = geographical_finding_algorythm(window_origin, window_origin - XYZ(0, 0, bottom_offset),
                                                  object_to_find_categoty=host_object.Category, ignore_id=host_object.Id)
-    print(bottom_wall)
     if len(bottom_wall):
         create_detail_component(win_elevation, XYZ(
             window_origin.X,
@@ -2120,16 +1946,19 @@ def get_perpendicular_shelter_section():
         except:
             new_name += '*'
 
-
+# try:
 transaction = Transaction(doc, 'Generate Window Sections')
 transaction.Start()
-# try:
-get_front_view()
+
+# get_front_view()
 get_perpendicular_window_section()
-get_perpendicular_shelter_section()
-get_callout()
+# get_perpendicular_shelter_section()
+# get_callout()
+
+transaction.Commit()
+
 # except Exception as err:
 #     print('ERROR!', err)
 #     print(vars(err))
 
-transaction.Commit()
+
