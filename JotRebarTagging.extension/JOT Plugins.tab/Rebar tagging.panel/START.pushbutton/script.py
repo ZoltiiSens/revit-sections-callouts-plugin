@@ -94,8 +94,8 @@ def geographical_finding_algorythm(start_point, end_point, object_to_find_name=N
     return intersections
 
 
-def get_wall_direction_vector(wall):
-    return wall.Location.Curve.Direction
+# def get_wall_direction_vector(wall):
+#     return wall.Location.Curve.Direction
 
 
 def find_floors_offsets(current_window):
@@ -559,8 +559,9 @@ def create_bending_detail(view, all_rebars, tag_type_name, tag_position, partiti
                     break
                 break
         return bdetail
-    except:
-        print('-- Error happend while bending detail was creating! It wasn\'t been created')
+    except Exception as e:
+        print('-- Error happened while bending detail was creating! It wasn\'t been created')
+        print(e)
 
 
 def create_text_note(view, text, position):
@@ -646,8 +647,14 @@ host_object = windowFamilyObject.Host
 win_height = windowFamilyObject.Symbol.get_Parameter(BuiltInParameter.GENERIC_HEIGHT).AsDouble()
 win_width = windowFamilyObject.Symbol.get_Parameter(BuiltInParameter.DOOR_WIDTH).AsDouble()
 win_depth = UnitUtils.ConvertToInternalUnits(40, UnitTypeId.Centimeters)
-vector = get_wall_direction_vector(host_object)
-perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
+win_center_point = XYZ((window_bbox.Min.X + window_bbox.Max.X) / 2, (window_bbox.Min.Y + window_bbox.Max.Y) / 2, (window_bbox.Min.Z + window_bbox.Max.Z) / 2)
+
+perpendicular_vector = windowFamilyObject.FacingOrientation
+perpendicular_vector = XYZ(-perpendicular_vector.X, -perpendicular_vector.Y, -perpendicular_vector.Z)
+vector = XYZ(perpendicular_vector.Y, perpendicular_vector.X, perpendicular_vector.Z)
+print(perpendicular_vector)
+print(vector)
+
 wall_bbox = host_object.get_BoundingBox(None)
 wall_height = wall_bbox.Max.Z - wall_bbox.Min.Z
 wallDepth = UnitUtils.ConvertToInternalUnits(host_object.Width, UnitTypeId.Feet)
@@ -664,8 +671,8 @@ wallDepth = UnitUtils.ConvertToInternalUnits(host_object.Width, UnitTypeId.Feet)
 def get_front_view():
     top_offset, bottom_offset = find_floors_offsets(windowFamilyObject)
 
-    end_point_left = window_origin + (win_width + 200 / 30.48) * get_wall_direction_vector(host_object)
-    end_point_right = window_origin - (win_width + 200 / 30.48) * get_wall_direction_vector(host_object)
+    end_point_left = window_origin + (win_width + 200 / 30.48) * vector
+    end_point_right = window_origin - (win_width + 200 / 30.48) * vector
     windows = geographical_finding_algorythm(
         window_origin,
         end_point_left,
@@ -731,13 +738,13 @@ def get_front_view():
     win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
     win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
     left_rebar_start_point = XYZ(
-        window_bbox.Min.X + left_offset * get_wall_direction_vector(host_object).X,
-        window_bbox.Min.Y + left_offset * get_wall_direction_vector(host_object).Y,
+        window_bbox.Min.X + left_offset * vector.X,
+        window_bbox.Min.Y + left_offset * vector.Y,
         window_bbox.Min.Z
     )
     left_rebar_end_point = XYZ(
-        window_bbox.Max.X + left_offset * get_wall_direction_vector(host_object).X,
-        window_bbox.Max.Y + left_offset * get_wall_direction_vector(host_object).Y,
+        window_bbox.Max.X + left_offset * vector.X,
+        window_bbox.Max.Y + left_offset * vector.Y,
         window_bbox.Max.Z
     )
     left_reb_5 = find_rebars_by_quantity_and_spacing(win_elevation, window_bbox.Min, window_bbox.Max, 5, 20, 3)
@@ -756,7 +763,7 @@ def get_front_view():
         win_elevation.HideElements(rebar_ids_to_hide)
     except:
         print('There are no rebars to hide')
-    perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
+    # perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
 
     # all_rebars = geographical_finding_algorythm(
     #     XYZ(
@@ -876,15 +883,15 @@ def get_front_view():
 
 # -------------------------------------------------------------------------------- From down to up --- SHOULD BE CALLOUT
 def get_callout():
-    end_point_left = window_origin + (win_width + 200 / 30.48) * get_wall_direction_vector(host_object)
-    end_point_right = window_origin - (win_width + 200 / 30.48) * get_wall_direction_vector(host_object)
+    end_point_left = window_origin + (win_width + 200 / 30.48) * vector
+    end_point_right = window_origin - (win_width + 200 / 30.48) * vector
 
     windows = geographical_finding_algorythm(
         window_origin,
         end_point_left,
         object_to_find_name=windowFamilyObject.Name,
         ignore_id=windowFamilyObject.Id)
-    left_point = window_origin + (win_width + 120 / 30.48) * get_wall_direction_vector(host_object)
+    left_point = window_origin + (win_width + 120 / 30.48) * vector
     if len(windows):
         best_distance = float('inf')
         for window in windows:
@@ -893,8 +900,8 @@ def get_callout():
             if distance < best_distance:
                 best_distance = distance
                 left_point = window.Location.Point + XYZ(
-                    win_width / 2 * get_wall_direction_vector(host_object).X,
-                    win_width / 2 * get_wall_direction_vector(host_object).Y,
+                    win_width / 2 * vector.X,
+                    win_width / 2 * vector.Y,
                     0)
     else:
         walls = geographical_finding_algorythm(
@@ -906,8 +913,8 @@ def get_callout():
             left_distance = walls[0].Location.Curve.Distance(window_origin)
             left_offset = (left_distance - win_width - 3 / 30.48)
             left_point = window_origin + XYZ(
-                (win_width + left_offset) * get_wall_direction_vector(host_object).X,
-                (win_width + left_offset) * get_wall_direction_vector(host_object).Y,
+                (win_width + left_offset) * vector.X,
+                (win_width + left_offset) * vector.Y,
                 0)
 
     windows = geographical_finding_algorythm(
@@ -915,7 +922,7 @@ def get_callout():
         end_point_right,
         object_to_find_name=windowFamilyObject.Name,
         ignore_id=windowFamilyObject.Id)
-    right_point = window_origin - (win_width + 120 / 30.48) * get_wall_direction_vector(host_object)
+    right_point = window_origin - (win_width + 120 / 30.48) * vector
     if len(windows):
         best_distance = float('inf')
         for window in windows:
@@ -924,8 +931,8 @@ def get_callout():
             if distance < best_distance:
                 best_distance = distance
                 right_point = window.Location.Point - XYZ(
-                    win_width / 2 * get_wall_direction_vector(host_object).X,
-                    win_width / 2 * get_wall_direction_vector(host_object).Y,
+                    win_width / 2 * vector.X,
+                    win_width / 2 * vector.Y,
                     0)
     else:
         walls = geographical_finding_algorythm(
@@ -937,8 +944,8 @@ def get_callout():
             right_distance = walls[0].Location.Curve.Distance(window_origin)
             right_offset = (right_distance - win_width - 22 / 30.48)
             right_point = window_origin - XYZ(
-                (win_width + right_offset) * get_wall_direction_vector(host_object).X,
-                (win_width + right_offset) * get_wall_direction_vector(host_object).Y,
+                (win_width + right_offset) * vector.X,
+                (win_width + right_offset) * vector.Y,
                 0)
 
     # Plan creation
@@ -950,7 +957,7 @@ def get_callout():
             break
     structuralPlan = ViewPlan.Create(doc, fec.Id, current_window_level_id)
 
-    perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
+    # perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
 
     start_point = XYZ(
         right_point.X + (perpendicular_vector.X * (host_object.Width / 2 + 10 / 30.48)),
@@ -1026,7 +1033,7 @@ def get_callout():
         ),
         object_to_find_builtin_category=BuiltInCategory.OST_Rebar
     ))
-    perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
+    # perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
     for all_rebars in rebars_sets:
         create_rebar_tag_depending_on_rebar(
             callout,
@@ -1708,7 +1715,7 @@ def get_perpendicular_shelter_section():
         XYZ(window_bbox.Min.X + 0.1, window_bbox.Min.Y + 0.1, window_origin.Z - 5.6),
         object_to_find_builtin_category=BuiltInCategory.OST_Rebar
     ))
-    perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
+    # perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
     for i, all_rebars in enumerate(rebars_sets):
         create_rebar_tag_depending_on_rebar(
             win_elevation,
@@ -1992,12 +1999,13 @@ def get_perpendicular_shelter_section():
 
 transaction = Transaction(doc, 'Generate Window Sections')
 transaction.Start()
-# try:
-get_front_view()
-get_perpendicular_window_section()
-get_perpendicular_shelter_section()
-get_callout()
-# except Exception as err:
-#     print('ERROR!', err)
-# finally:
-transaction.Commit()
+try:
+    pass
+    # get_front_view()
+    # get_perpendicular_window_section()
+    # get_perpendicular_shelter_section()
+    get_callout()
+except Exception as err:
+    print('ERROR!', err)
+finally:
+    transaction.Commit()
