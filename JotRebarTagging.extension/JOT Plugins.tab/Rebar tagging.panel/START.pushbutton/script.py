@@ -643,7 +643,7 @@ def create_detail_component(view, location):
 
 def create_spot_elevation(view, element, point, ):
     reference = Reference(element)
-    offset_point = point + XYZ(perpendicular_vector.X * -5, perpendicular_vector.Y * -5, 0)
+    offset_point = point + XYZ(perpendicular_vector.X * 5, perpendicular_vector.Y * 5, 0)
 
     # TODO: get getting type out of function
     family_symbols = FilteredElementCollector(doc).OfClass(SpotDimensionType)
@@ -657,7 +657,6 @@ def create_spot_elevation(view, element, point, ):
         except:
             print(':cross_mark: ERROR! There is no necessary spot elevation type: "Arrow (Project)". Plugin will stop now...')
             raise Exception('Cant\'t find!')
-
 
     spot_dimension = doc.Create.NewSpotElevation(
         view,
