@@ -651,7 +651,7 @@ win_center_point = XYZ((window_bbox.Min.X + window_bbox.Max.X) / 2, (window_bbox
 
 perpendicular_vector = windowFamilyObject.FacingOrientation
 perpendicular_vector = XYZ(-perpendicular_vector.X, -perpendicular_vector.Y, -perpendicular_vector.Z)
-vector = XYZ(perpendicular_vector.Y, perpendicular_vector.X, perpendicular_vector.Z)
+vector = XYZ(-perpendicular_vector.Y, perpendicular_vector.X, perpendicular_vector.Z)
 print(perpendicular_vector)
 print(vector)
 
@@ -736,6 +736,7 @@ def get_front_view():
     views = FilteredElementCollector(doc).OfClass(View).ToElements()
     viewTemplates = [v for v in views if v.IsTemplate and "Window_View" in v.Name.ToString()]
     win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
+    win_elevation.get_Parameter(BuiltInParameter.VIEWER_ANNOTATION_CROP_ACTIVE).Set(0)
     win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
     left_rebar_start_point = XYZ(
         window_bbox.Min.X + left_offset * vector.X,
@@ -978,6 +979,8 @@ def get_callout():
         end_point
     )
 
+    callout.get_Parameter(BuiltInParameter.VIEWER_ANNOTATION_CROP_ACTIVE).Set(0)
+
     # Modifying viewRange
     sill_height_param = windowFamilyObject.LookupParameter("Sill Height")
     if sill_height_param:
@@ -1033,7 +1036,6 @@ def get_callout():
         ),
         object_to_find_builtin_category=BuiltInCategory.OST_Rebar
     ))
-    # perpendicular_vector = XYZ(-vector.Y, vector.X, vector.Z)
     for all_rebars in rebars_sets:
         create_rebar_tag_depending_on_rebar(
             callout,
@@ -1120,15 +1122,6 @@ def get_callout():
             'Vert_In',
             create_only_for_one=True)
 
-        # create_rebar_tag_depending_on_rebar(
-        #     callout,
-        #     all_rebars,
-        #     TagMode.TM_ADDBY_CATEGORY,
-        #     TagOrientation.Horizontal,
-        #     'Horizontal_Bars',
-        #     XYZ(0.8 * vector.X + 1.6 * perpendicular_vector.X, 0.8 * vector.Y + 1.6 * perpendicular_vector.Y, 0),
-        #     'Window_Detail_20')
-
         create_bending_detail(
             callout,
             all_rebars,
@@ -1203,14 +1196,15 @@ def get_callout():
             create_only_for_one=True,
             has_leader=False)
 
-    create_text_note(callout, b'\xd7\x97\xd7\x95\xd7\xa5'.decode('UTF-8'), window_origin + XYZ(
-        2.3 * windowFamilyObject.FacingOrientation.X + win_height / 2 * vector.X,
-        2.3 * windowFamilyObject.FacingOrientation.Y + win_height / 2 * vector.Y,
-        0))
-    create_text_note(callout, b'\xd7\xa4\xd7\xa0\xd7\x99\xd7\x9d'.decode('UTF-8'), window_origin + XYZ(
-        -4 * windowFamilyObject.FacingOrientation.X + win_height / 2 * vector.X,
-        -4 * windowFamilyObject.FacingOrientation.Y + win_height / 2 * vector.Y,
-        0))
+    create_text_note(callout, b'\xd7\x97\xd7\x95\xd7\xa5'.decode('UTF-8'), XYZ(
+        window_origin.X - 4 * perpendicular_vector.X - 1 * vector.X,
+        window_origin.Y - 4 * perpendicular_vector.Y - 1 * vector.Y,
+        window_origin.Z))
+
+    create_text_note(callout, b'\xd7\xa4\xd7\xa0\xd7\x99\xd7\x9d'.decode('UTF-8'), XYZ(
+        window_origin.X + 4 * perpendicular_vector.X - 1 * vector.X,
+        window_origin.Y + 4 * perpendicular_vector.Y - 1 * vector.Y,
+        window_origin.Z))
 
     create_detail_component(callout, XYZ(
         left_point.X + -vector.X * 10 / 30.48,
@@ -1281,6 +1275,7 @@ def get_perpendicular_window_section():
 
 
     win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
+    win_elevation.get_Parameter(BuiltInParameter.VIEWER_ANNOTATION_CROP_ACTIVE).Set(0)
 
     try:
         win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
@@ -1700,6 +1695,7 @@ def get_perpendicular_shelter_section():
     views = FilteredElementCollector(doc).OfClass(View).ToElements()
     viewTemplates = [v for v in views if v.IsTemplate and "Section_Reinforcement" in v.Name.ToString()]
     win_elevation = ViewSection.CreateSection(doc, section_type_id, section_box)
+    win_elevation.get_Parameter(BuiltInParameter.VIEWER_ANNOTATION_CROP_ACTIVE).Set(0)
     win_elevation.ApplyViewTemplateParameters(viewTemplates[0])
     new_name = 'MAMAD_Window_Section_2'
     win_elevation.Scale = 25
