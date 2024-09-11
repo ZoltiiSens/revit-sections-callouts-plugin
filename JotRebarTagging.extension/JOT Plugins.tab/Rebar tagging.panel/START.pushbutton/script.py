@@ -370,10 +370,10 @@ def check_type_of_ulink_hor_rebar(view, all_rebars, rebarShapes):
         if rebar.LookupParameter("Partition").AsString() == 'Hor_In':
             filtered_rebars_hor_in.append(rebar)
     if len(filtered_rebars) == 0:
-        print('0')
+        # print('0')
         pass
     elif len(filtered_rebars) == 1 and filtered_rebars[0].GetShapeId() == rebarShapes['5_U-Shape'].Id and len(filtered_rebars_hor_in) > 0:
-        print('1')
+        # print('1')
         # 3
         create_bending_detail(
             view,
@@ -432,7 +432,7 @@ def check_type_of_ulink_hor_rebar(view, all_rebars, rebarShapes):
             create_only_for_one=True,
             has_leader=False)
     elif len(filtered_rebars) == 2 and filtered_rebars[0].GetShapeId() == rebarShapes['5_U-Shape'].Id and len(filtered_rebars_hor_in) > 0:
-        print('2')
+        # print('2')
         for reb in filtered_rebars:
             create_bending_detail(
                 view,
@@ -529,7 +529,7 @@ def check_type_of_ulink_hor_rebar(view, all_rebars, rebarShapes):
             create_only_for_one=True,
             has_leader=False)
     elif len(filtered_rebars) == 2 and filtered_rebars[0].GetShapeId() == rebarShapes['5_U-Shape'].Id and len(filtered_rebars_hor_in) == 0:
-        print('3')
+        # print('3')
         # 2
         create_bending_detail(
             view,
@@ -1096,7 +1096,7 @@ def get_callout():
             TagMode.TM_ADDBY_CATEGORY,
             TagOrientation.Horizontal,
             'Horizontal_Bars',
-            XYZ(1.3 * perpendicular_vector.X - 0 * vector.X, 1.3 * perpendicular_vector.Y - 0 * vector.Y, 0),
+            XYZ(1.8 * perpendicular_vector.X - 0 * vector.X, 1.8 * perpendicular_vector.Y - 0 * vector.Y, 0),
             'Vert_In',
             create_only_for_one=True)
 
@@ -1135,7 +1135,7 @@ def get_callout():
             TagMode.TM_ADDBY_CATEGORY,
             TagOrientation.Horizontal,
             'Horizontal_Bars',
-            XYZ(0 * vector.X + 2 * perpendicular_vector.X, 0 * vector.Y + 2 * perpendicular_vector.Y, 0),
+            XYZ(0 * vector.X + 2.6 * perpendicular_vector.X, 0 * vector.Y + 2.6 * perpendicular_vector.Y, 0),
             'WD_Vert_14_sh_in')
 
         create_rebar_tag_depending_on_rebar(
@@ -1144,7 +1144,7 @@ def get_callout():
             TagMode.TM_ADDBY_CATEGORY,
             TagOrientation.Horizontal,
             'Horizontal_Bars',
-            XYZ(-0.4 * vector.X + 2.3 * perpendicular_vector.X, -0.4 * vector.Y + 2.3 * perpendicular_vector.Y, 0),
+            XYZ(-0.7 * vector.X + 2.3 * perpendicular_vector.X, -0.7 * vector.Y + 2.3 * perpendicular_vector.Y, 0),
             'Vert_8_sh')
 
         create_rebar_tag_depending_on_rebar(
@@ -1162,7 +1162,7 @@ def get_callout():
             TagMode.TM_ADDBY_CATEGORY,
             TagOrientation.Horizontal,
             'Horizontal_Bars',
-            XYZ(0.6 * vector.X + 2 * perpendicular_vector.X, 0.6 * vector.Y + 2 * perpendicular_vector.Y, 0),
+            XYZ(0.6 * vector.X + 2.5 * perpendicular_vector.X, 0.6 * vector.Y + 2.5 * perpendicular_vector.Y, 0),
             'WD_Vert_14')
 
 
